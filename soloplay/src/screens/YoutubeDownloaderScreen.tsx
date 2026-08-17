@@ -67,7 +67,9 @@ export const YoutubeDownloaderScreen = ({ onBack, onOpenPlayer }: YoutubeDownloa
     setIsSearching(true);
 
     try {
-      const query = encodeURIComponent(queryToSearch.trim());
+      // "Arda Güler" gibi şarkıcı olmayan aramalarda futbol videoları çıkmaması için,
+      // YouTube arama motoruna mantıksal (boolean) operatörler ile kesin filtre veriyoruz.
+      const query = encodeURIComponent(queryToSearch.trim() + ' "şarkı" OR "official audio" OR "music video"');
       const response = await fetch(`https://www.youtube.com/results?search_query=${query}`);
       const html = await response.text();
       
