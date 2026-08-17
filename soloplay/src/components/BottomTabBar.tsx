@@ -12,9 +12,10 @@ type Tab = {
 
 const tabs: Tab[] = [
   { id: 'Dashboard', title: 'Ana Sayfa', icon: 'home' },
-  { id: 'MusicDashboard', title: 'Müzik', icon: 'musical-notes' },
-  { id: 'Documents', title: 'Belgeler', icon: 'document-text' },
+  { id: 'Documents', title: 'OCR', icon: 'document-text' },
   { id: 'Scan', title: 'Tara', icon: 'scan' },
+  { id: 'MusicDashboard', title: 'Müzik', icon: 'musical-notes' },
+  { id: 'Video', title: 'Video', icon: 'play-circle' },
 ];
 
 export const BottomTabBar = ({ 

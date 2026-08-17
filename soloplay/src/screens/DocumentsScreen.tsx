@@ -115,7 +115,7 @@ export default function DocumentsScreen() {
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
         <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>Belgeler</Text>
+          <Text style={styles.headerTitle}>OCR Taranan Belgeler</Text>
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity 
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
   },
   cardOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'transparent',
     justifyContent: 'space-between',
   },
   cardHeader: { 

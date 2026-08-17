@@ -199,9 +199,8 @@ export const DashboardScreen = ({ onNavigate, onNavigateToPlaylist, onOpenPlayer
           )}
         </View>
 
-        {/* Son İşlem Gören Belgeler Bölümü */}
         <View style={styles.mainSection}>
-          {renderSectionHeader('Kayıtlı Belgeler', () => onNavigate('Documents'), true)}
+          {renderSectionHeader('OCR Taranan Belgeler', () => onNavigate('Documents'), true)}
           <View style={styles.subSection}>
             {recentDocuments.length > 0 ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScrollContent} decelerationRate="fast" snapToInterval={CARD_WIDTH + 15}>

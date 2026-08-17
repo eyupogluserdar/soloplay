@@ -525,22 +525,20 @@ export function ScanScreen({ onBack }: any) {
             
           </View>
 
-          <View style={styles.customCropControls} pointerEvents="box-none">
+          <View style={[styles.customCropControls, { justifyContent: 'center' }]} pointerEvents="box-none">
             {galleryImageUri ? (
-              <TouchableOpacity style={styles.cropCancelBtn} onPress={() => setGalleryImageUri(null)}>
+              <TouchableOpacity style={[styles.cropCancelBtn, { position: 'absolute', left: 20 }]} onPress={() => setGalleryImageUri(null)}>
                 <Text style={{ color: 'white', fontWeight: 'bold' }}>İptal</Text>
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity style={styles.galleryButton} onPress={pickImage} disabled={isProcessing}>
-                <Ionicons name="image" size={32} color="white" />
+              <TouchableOpacity onPress={pickImage} disabled={isProcessing} style={{ position: 'absolute', left: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' }}>
+                <Ionicons name="image" size={34} color="white" />
               </TouchableOpacity>
             )}
 
             <TouchableOpacity style={styles.cropScanBtn} onPress={galleryImageUri ? processGalleryOCR : onCapture} disabled={isProcessing}>
-              {isProcessing ? <ActivityIndicator color="#000" /> : <Text style={{ color: '#000', fontWeight: 'bold' }}>{galleryImageUri ? "TARA" : "FOTOĞRAF ÇEK"}</Text>}
+              {isProcessing ? <ActivityIndicator color="#000" /> : <Text style={{ color: '#000', fontWeight: 'bold', textAlign: 'center' }}>{galleryImageUri ? "TARA" : "FOTOĞRAF ÇEK"}</Text>}
             </TouchableOpacity>
-
-            {!galleryImageUri && <View style={{ width: 50, height: 50 }} />}
           </View>
         </View>
       ) : (

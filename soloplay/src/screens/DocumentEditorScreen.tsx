@@ -51,11 +51,11 @@ export default function DocumentEditorScreen({ initialText, documentId, imageUri
 
     if (currentDocId) {
       updateDocument(currentDocId, { title, content: text, ...(finalUri ? { imageUri: finalUri } : {}) });
-      Alert.alert("Başarılı", "Döküman güncellendi.");
+      Alert.alert("Başarılı", "Döküman güncellendi.", [{ text: "Tamam", onPress: onClose }]);
     } else {
       const newId = addDocument({ title, content: text, type: 'ocr', imageUri: finalUri || undefined });
       setCurrentDocId(newId);
-      Alert.alert("Başarılı", "Yeni döküman olarak kaydedildi.");
+      Alert.alert("Başarılı", "Yeni döküman olarak kaydedildi.", [{ text: "Tamam", onPress: onClose }]);
     }
   };
 
