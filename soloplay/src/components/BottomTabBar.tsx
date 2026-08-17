@@ -13,8 +13,8 @@ type Tab = {
 const tabs: Tab[] = [
   { id: 'Dashboard', title: 'Ana Sayfa', icon: 'home' },
   { id: 'MusicDashboard', title: 'Müzik', icon: 'musical-notes' },
+  { id: 'Documents', title: 'Belgeler', icon: 'document-text' },
   { id: 'Scan', title: 'Tara', icon: 'scan' },
-  { id: 'VideoPlayer', title: 'Video', icon: 'videocam' },
 ];
 
 export const BottomTabBar = ({ 
@@ -34,13 +34,7 @@ export const BottomTabBar = ({
           <TouchableOpacity
             key={tab.id}
             style={styles.tab}
-            onPress={() => {
-              if (tab.id === 'VideoPlayer') {
-                alert('Video oynatıcı yakında eklenecek!');
-              } else {
-                onNavigate(tab.id);
-              }
-            }}
+            onPress={() => onNavigate(tab.id)}
           >
             <View style={[styles.iconContainer, isActive && styles.iconContainerActive]}>
               <Ionicons

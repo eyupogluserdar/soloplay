@@ -7,6 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography } from '../theme/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import DocumentEditorScreen from './DocumentEditorScreen';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -69,31 +70,25 @@ export function ScanScreen({ onBack }: any) {
       const { locationX, locationY } = evt.nativeEvent;
       const rect = cropRectRef.current;
       
-      const moveHandleX = rect.x + rect.w / 2;
-      const moveHandleY = rect.y + rect.h + 25;
-      
       let edge = '';
       
-      // 1. Kutunun dışındaki taşıma iğnesine (Move handle) öncelik ver
-      if (Math.abs(locationX - moveHandleX) < 40 && Math.abs(locationY - moveHandleY) < 40) {
-        edge = 'center';
-      } else {
-          // 2. Kenarları dinamik algıla (Kutu küçülünce köşeler birbirine girmesin diye max sınır koy)
-          const THRESHOLD = Math.min(60, rect.w / 3, rect.h / 3); 
+      // Kenarları dinamik algıla (Kutu küçülünce köşeler birbirine girmesin diye max sınır koy)
+      const THRESHOLD = Math.min(60, rect.w / 3, rect.h / 3); 
+      
           
-          if (Math.abs(locationY - rect.y) < THRESHOLD) edge += 'top';
-          else if (Math.abs(locationY - (rect.y + rect.h)) < THRESHOLD) edge += 'bottom';
-          
-          if (Math.abs(locationX - rect.x) < THRESHOLD) edge += 'left';
-          else if (Math.abs(locationX - (rect.x + rect.w)) < THRESHOLD) edge += 'right';
-          
-          if (!edge) {
-            if (locationX > rect.x && locationX < rect.x + rect.w && locationY > rect.y && locationY < rect.y + rect.h) {
-              edge = 'center';
-            } else {
-              edge = 'image-pan'; // Outside crop box -> Pan Image
-            }
-          }
+      if (Math.abs(locationY - rect.y) < THRESHOLD) edge += 'top';
+      else if (Math.abs(locationY - (rect.y + rect.h)) < THRESHOLD) edge += 'bottom';
+      
+      if (Math.abs(locationX - rect.x) < THRESHOLD) edge += 'left';
+      else if (Math.abs(locationX - (rect.x + rect.w)) < THRESHOLD) edge += 'right';
+      
+      if (!edge) {
+        // İçine tıklandıysa (kenarlara yakın değilse) taşıma işlemi (center) yap
+        if (locationX > rect.x && locationX < rect.x + rect.w && locationY > rect.y && locationY < rect.y + rect.h) {
+          edge = 'center';
+        } else {
+          edge = 'image-pan'; // Outside crop box -> Pan Image
+        }
       }
       activeEdge.current = edge;
     },
@@ -257,26 +252,54 @@ export function ScanScreen({ onBack }: any) {
       let allLines: any[] = [];
       result.blocks.forEach((b: any) => {
         if (b.lines && b.lines.length > 0) {
-          allLines.push(...b.lines);
+          b.lines.forEach((line: any) => {
+            if (line.elements && line.elements.length > 0) {
+              const validElements = line.elements.filter((el: any) => {
+                 if (!el.frame) return true;
+                 // Be strict about elements: check if the center of the word is well within bounds
+                 let elCenterY = el.frame.top + (el.frame.height / 2);
+                 let elCenterX = el.frame.left + (el.frame.width / 2);
+                 
+                 if (isLandscapePhotoOnPortraitUI) {
+                     const rawX = elCenterX;
+                     const rawY = elCenterY;
+                     elCenterX = galleryImageDim.h - rawY; 
+                     elCenterY = rawX;        
+                 }
+                 return elCenterY >= minY && elCenterY <= maxY && elCenterX >= minX && elCenterX <= maxX;
+              });
+              if (validElements.length > 0) {
+                 allLines.push({
+                    ...line,
+                    text: validElements.map((el: any) => el.text).join(' '),
+                 });
+              }
+            } else {
+              // Fallback to line check if no elements
+              if (!line.frame) {
+                  allLines.push(line);
+                  return;
+              }
+              let lineCenterY = line.frame.top + (line.frame.height / 2);
+              let lineCenterX = line.frame.left + (line.frame.width / 2);
+              if (isLandscapePhotoOnPortraitUI) {
+                  const rawX = lineCenterX;
+                  const rawY = lineCenterY;
+                  lineCenterX = galleryImageDim.h - rawY; 
+                  lineCenterY = rawX;        
+              }
+              if (lineCenterY >= minY && lineCenterY <= maxY && lineCenterX >= minX && lineCenterX <= maxX) {
+                  allLines.push(line);
+              }
+            }
+          });
         } else {
-          allLines.push(b);
+           // Fallback for raw blocks
+           allLines.push(b);
         }
       });
-
-      const filteredLines = allLines.filter(line => {
-        if (!line.frame) return true;
-        let lineCenterY = line.frame.top + (line.frame.height / 2);
-        let lineCenterX = line.frame.left + (line.frame.width / 2);
-        
-        if (isLandscapePhotoOnPortraitUI) {
-            const rawX = lineCenterX;
-            const rawY = lineCenterY;
-            lineCenterX = galleryImageDim.h - rawY; 
-            lineCenterY = rawX;        
-        }
-        
-        return lineCenterY >= minY && lineCenterY <= maxY && lineCenterX >= minX && lineCenterX <= maxX;
-      });
+      
+      const filteredLines = allLines;
       
       if (!filteredLines || filteredLines.length === 0) {
         Alert.alert('Bulunamadı', 'Kutunun içinde metin algılanamadı.');
@@ -337,7 +360,6 @@ export function ScanScreen({ onBack }: any) {
       }
 
       setCapturedText(fullTextStr);
-      setGalleryImageUri(null); // Clear gallery state
       setIsScanning(false);
     } catch (e: any) {
       console.log('Tarama hatası:', e);
@@ -379,6 +401,11 @@ export function ScanScreen({ onBack }: any) {
     Alert.alert('Kopyalandı', 'Tüm metin panoya kopyalandı.');
   };
 
+  const closeEditor = () => {
+    setCapturedText('');
+    setIsScanning(true);
+  };
+
   const resetScanner = () => {
     setCapturedText('');
     setGalleryImageUri(null);
@@ -406,11 +433,14 @@ export function ScanScreen({ onBack }: any) {
         <TouchableOpacity 
           style={{ padding: 5, marginRight: 15 }} 
           onPress={() => {
-            if (galleryImageUri) {
-              setGalleryImageUri(null);
-            } else if (!isScanning) {
+            if (!isScanning) {
+              // Editördeyken Geri tuşuna basılırsa, doğrudan canlı kameraya dön
               resetScanner();
+            } else if (galleryImageUri) {
+              // Kırpma ekranındayken Geri tuşuna basılırsa, canlı kameraya dön
+              setGalleryImageUri(null);
             } else if (onBack) {
+              // Canlı kameradayken Geri tuşuna basılırsa, Dashboard'a dön
               onBack();
             }
           }}
@@ -418,7 +448,7 @@ export function ScanScreen({ onBack }: any) {
           <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>
         <View style={styles.logoContainer}>
-          <Text style={styles.logoTextSolo}>{galleryImageUri ? "Resmi Kırp" : "Akıllı Tarayıcı"}</Text>
+          <Text style={styles.logoTextSolo}>{galleryImageUri && isScanning ? "Resmi Kırp" : "Akıllı Tarayıcı"}</Text>
         </View>
         <View style={{ flex: 1 }} />
         {!isScanning && (
@@ -476,10 +506,6 @@ export function ScanScreen({ onBack }: any) {
                 <View style={[styles.edgeHandle, { left: -6, top: '50%', marginTop: -15, width: 8, height: 30 }]} />
                 <View style={[styles.edgeHandle, { right: -6, top: '50%', marginTop: -15, width: 8, height: 30 }]} />
                 
-                {/* Kutunun Altında Taşıma (Move) İğnesi */}
-                <View style={[styles.centerMoveHandle, { top: '100%', left: '50%', marginTop: 10, marginLeft: -16 }]}>
-                  <Ionicons name="move" size={18} color="#fff" />
-                </View>
               </View>
             )}
 
@@ -518,35 +544,12 @@ export function ScanScreen({ onBack }: any) {
           </View>
         </View>
       ) : (
-        <View style={styles.resultContainer}>
-          <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
-            <Text
-              selectable={true}
-              style={{
-                color: colors.text,
-                fontSize: 18,
-                lineHeight: 28,
-                letterSpacing: 0.3,
-              }}
-            >
-              {capturedText}
-            </Text>
-          </ScrollView>
-
-          {capturedText.length > 0 && (
-            <View style={styles.actionPanel}>
-              <View style={styles.buttonsRow}>
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.actionButtonSecondary]}
-                  onPress={copyAll}
-                >
-                  <Ionicons name="document-text" size={20} color={colors.text} style={{ marginRight: 6 }} />
-                  <Text style={[styles.actionButtonText, { color: colors.text }]}>Tümünü Al</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-        </View>
+        <DocumentEditorScreen 
+          initialText={capturedText} 
+          imageUri={galleryImageUri}
+          onClose={closeEditor} 
+          hideInsets={true}
+        />
       )}
     </View>
   );

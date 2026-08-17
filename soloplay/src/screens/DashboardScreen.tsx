@@ -1,11 +1,15 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions, Alert, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, typography } from '../theme/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useAudio } from '../context/AudioContext';
 import { usePlayerStore } from '../store/usePlayerStore';
 import type { Track } from '../store/usePlayerStore';
+import { useDocStore } from '../store/useDocStore';
+import { CardOverlay } from '../components/CardOverlay';
+import { AddToPlaylistModal } from '../components/AddToPlaylistModal';
+import { AddToDocCategoryModal } from '../components/AddToDocCategoryModal';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.38;
@@ -22,6 +26,19 @@ export const DashboardScreen = ({ onNavigate, onNavigateToPlaylist, onOpenPlayer
   const playlists = usePlayerStore(state => state.playlists);
   const memory = usePlayerStore(state => state.memory);
   const recentTracks = usePlayerStore(state => state.recentTracks || []);
+  const documents = useDocStore(state => state.documents);
+  const getRecentDocuments = useDocStore(state => state.getRecentDocuments);
+  const deleteDocument = useDocStore(state => state.deleteDocument);
+  const removeRecentTrack = usePlayerStore(state => state.removeRecentTrack);
+  const recentDocuments = getRecentDocuments(5);
+
+  const [activeCardId, setActiveCardId] = useState<string | null>(null);
+  
+  const [addToPlaylistVisible, setAddToPlaylistVisible] = useState(false);
+  const [selectedTrackForAdd, setSelectedTrackForAdd] = useState<any>(null);
+  
+  const [addToCategoryVisible, setAddToCategoryVisible] = useState(false);
+  const [selectedDocForAdd, setSelectedDocForAdd] = useState<any>(null);
 
   const getDynamicColor = (text: string) => {
     let hash = 0;
@@ -83,6 +100,8 @@ export const DashboardScreen = ({ onNavigate, onNavigateToPlaylist, onOpenPlayer
         showsVerticalScrollIndicator={false}
       >
 
+
+
         {/* Ana Müziklerim Bölümü */}
         <View style={styles.mainSection}>
           {renderSectionHeader('Müziklerim', () => onNavigate('MusicDashboard'), true)}
@@ -90,26 +109,27 @@ export const DashboardScreen = ({ onNavigate, onNavigateToPlaylist, onOpenPlayer
           {recentDownloads.length > 0 && (
             <View style={styles.subSection}>
               {renderSectionHeader('YouTube Müziklerim', () => onNavigateToPlaylist(ytPlaylist!.id, ytPlaylist!.name))}
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false} 
-                contentContainerStyle={styles.horizontalScrollContent}
-                decelerationRate="fast"
-                snapToInterval={CARD_WIDTH + 15}
-              >
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScrollContent} decelerationRate="fast" snapToInterval={CARD_WIDTH + 15}>
                 {recentDownloads.map((track, idx) => (
                   <TouchableOpacity 
                     key={`dl_${track.uri}_${idx}`} 
-                    style={styles.card}
+                    style={[styles.card, activeCardId === track.uri && { zIndex: 10, elevation: 10 }]} 
                     onPress={() => handlePlayTrack(track, ytPlaylist!.id, ytPlaylist!.name)}
+                    onLongPress={() => setActiveCardId(track.uri)}
+                    disabled={activeCardId === track.uri}
                   >
-                    {track.artwork ? (
-                      <Image source={{ uri: track.artwork }} style={styles.cardImage} />
-                    ) : (
+                    {track.artwork ? <Image source={{ uri: track.artwork }} style={styles.cardImage} /> : (
                       <View style={[styles.cardImage, styles.placeholderImage, { backgroundColor: getDynamicColor(track.name) }]}>
                         <Ionicons name="musical-notes" size={32} color={colors.textSecondary} />
                       </View>
                     )}
+                    <CardOverlay
+                      visible={activeCardId === track.uri}
+                      onClose={() => setActiveCardId(null)}
+                      options={[
+                        { icon: 'folder', color: '#1DD75F', onPress: () => { setSelectedTrackForAdd(track); setAddToPlaylistVisible(true); } }
+                      ]}
+                    />
                     <Text style={styles.cardTitle} numberOfLines={1}>{track.name}</Text>
                     <Text style={styles.cardSubtitle} numberOfLines={1}>{track.artist || 'Bilinmeyen'}</Text>
                   </TouchableOpacity>
@@ -121,26 +141,28 @@ export const DashboardScreen = ({ onNavigate, onNavigateToPlaylist, onOpenPlayer
           {recentPlayed.length > 0 && (
             <View style={styles.subSection}>
               {renderSectionHeader('Sık Dinlenenler')}
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false} 
-                contentContainerStyle={styles.horizontalScrollContent}
-                decelerationRate="fast"
-                snapToInterval={CARD_WIDTH + 15}
-              >
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScrollContent} decelerationRate="fast" snapToInterval={CARD_WIDTH + 15}>
                 {recentPlayed.map((item, idx) => (
                   <TouchableOpacity 
                     key={`rp_${item.trackUri}_${idx}`} 
-                    style={styles.card}
+                    style={[styles.card, activeCardId === item.trackUri && { zIndex: 10, elevation: 10 }]} 
                     onPress={() => handlePlayMemory(item)}
+                    onLongPress={() => setActiveCardId(item.trackUri)}
+                    disabled={activeCardId === item.trackUri}
                   >
-                    {item.artwork ? (
-                      <Image source={{ uri: item.artwork }} style={styles.cardImage} />
-                    ) : (
+                    {item.artwork ? <Image source={{ uri: item.artwork }} style={styles.cardImage} /> : (
                       <View style={[styles.cardImage, styles.placeholderImage, { backgroundColor: getDynamicColor(item.trackName) }]}>
                         <Ionicons name="play-circle" size={32} color={colors.textSecondary} />
                       </View>
                     )}
+                    <CardOverlay
+                      visible={activeCardId === item.trackUri}
+                      onClose={() => setActiveCardId(null)}
+                      options={[
+                        { icon: 'folder', color: '#1DD75F', onPress: () => { setSelectedTrackForAdd(item); setAddToPlaylistVisible(true); } },
+                        { icon: 'trash', color: '#ff4444', onPress: () => removeRecentTrack(item.trackUri) }
+                      ]}
+                    />
                     <Text style={styles.cardTitle} numberOfLines={1}>{item.trackName}</Text>
                     <Text style={styles.cardSubtitle} numberOfLines={1}>{item.playlistName}</Text>
                   </TouchableOpacity>
@@ -150,11 +172,112 @@ export const DashboardScreen = ({ onNavigate, onNavigateToPlaylist, onOpenPlayer
           )}
           
           {recentDownloads.length === 0 && recentPlayed.length === 0 && (
-             <Text style={styles.emptyText}>Henüz çalınan veya indirilen bir parça yok.</Text>
+            <View style={styles.subSection}>
+              {renderSectionHeader('Önerilenler', () => onNavigate('YoutubeDownloader'))}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScrollContent} decelerationRate="fast" snapToInterval={CARD_WIDTH + 15}>
+                {[
+                  { id: 'm1', title: 'Pop Mix 2026', sub: 'Harika bir başlangıç', icon: 'musical-notes', artwork: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&q=80' },
+                  { id: 'm2', title: 'Akustik Dinleti', sub: 'Rahatlatıcı', icon: 'musical-notes', artwork: 'https://images.unsplash.com/photo-1460723237483-7a6dc9d0b212?w=500&q=80' },
+                  { id: 'add', title: 'Müzik Ara', sub: 'İndir & Dinle', icon: 'search', artworkLocal: require('../../assets/dummy_music_search.jpg') }
+                ].map((dummy, idx) => (
+                  <TouchableOpacity key={dummy.id} style={styles.card} onPress={() => onNavigate('YoutubeDownloader')} activeOpacity={0.8}>
+                    {dummy.artworkLocal ? (
+                        <Image source={dummy.artworkLocal} style={styles.cardImage} />
+                    ) : dummy.artwork ? (
+                        <Image source={{ uri: dummy.artwork }} style={styles.cardImage} />
+                    ) : (
+                        <View style={[styles.cardImage, styles.placeholderImage, { backgroundColor: dummy.id === 'add' ? '#1DD75F' : getDynamicColor(dummy.title) }]}>
+                            <Ionicons name={dummy.icon as any} size={32} color={dummy.id === 'add' ? '#000' : colors.textSecondary} />
+                        </View>
+                    )}
+                    <Text style={styles.cardTitle} numberOfLines={1}>{dummy.title}</Text>
+                    <Text style={styles.cardSubtitle} numberOfLines={1}>{dummy.sub}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
           )}
         </View>
 
+        {/* Son İşlem Gören Belgeler Bölümü */}
+        <View style={styles.mainSection}>
+          {renderSectionHeader('Kayıtlı Belgeler', () => onNavigate('Documents'), true)}
+          <View style={styles.subSection}>
+            {recentDocuments.length > 0 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScrollContent} decelerationRate="fast" snapToInterval={CARD_WIDTH + 15}>
+                {recentDocuments.map((doc) => (
+                  <TouchableOpacity 
+                    key={doc.id} 
+                    style={[styles.card, activeCardId === doc.id && { zIndex: 10, elevation: 10 }]} 
+                    onPress={() => onNavigate('Documents')} 
+                    onLongPress={() => setActiveCardId(doc.id)}
+                    activeOpacity={0.7}
+                    disabled={activeCardId === doc.id}
+                  >
+                    {doc.imageUri ? (
+                        <Image source={{ uri: doc.imageUri }} style={styles.cardImage} />
+                    ) : (
+                        <View style={[styles.cardImage, styles.placeholderImage, { backgroundColor: getDynamicColor(doc.id) }]}>
+                        <Ionicons name="document-text" size={32} color="rgba(255,255,255,0.7)" />
+                        </View>
+                    )}
+                    <CardOverlay
+                      visible={activeCardId === doc.id}
+                      onClose={() => setActiveCardId(null)}
+                      options={[
+                        { icon: 'folder', color: '#1DD75F', onPress: () => { setSelectedDocForAdd(doc); setAddToCategoryVisible(true); } },
+                        { icon: 'trash', color: '#ff4444', onPress: () => {
+                            Alert.alert('Emin misiniz?', `"${doc.title}" belgesini silmek istediğinize emin misiniz?`, [
+                              { text: 'İptal', style: 'cancel' },
+                              { text: 'Sil', style: 'destructive', onPress: () => deleteDocument(doc.id) }
+                            ]);
+                        }}
+                      ]}
+                    />
+                    <Text style={styles.cardTitle} numberOfLines={1}>{doc.title}</Text>
+                    <Text style={styles.cardSubtitle} numberOfLines={1}>{new Date(doc.updatedAt).toLocaleDateString()}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScrollContent} decelerationRate="fast" snapToInterval={CARD_WIDTH + 15}>
+                {[
+                  { id: 'd1', title: 'Kira Sözleşmesi', sub: 'Örnek Belge', icon: 'document-text', artworkLocal: require('../../assets/dummy_contract.jpg') },
+                  { id: 'd2', title: 'Market Fişi', sub: 'Örnek Fiş', icon: 'receipt', artworkLocal: require('../../assets/dummy_receipt.jpg') },
+                  { id: 'add', title: 'Belge Tara', sub: 'Yeni Ekle', icon: 'scan', artworkLocal: require('../../assets/dummy_scan_ui.jpg') }
+                ].map((dummy, idx) => (
+                  <TouchableOpacity key={dummy.id} style={styles.card} onPress={() => onNavigate('Scan')} activeOpacity={0.8}>
+                    {dummy.artworkLocal ? (
+                        <Image source={dummy.artworkLocal} style={styles.cardImage} />
+                    ) : dummy.artwork ? (
+                        <Image source={{ uri: dummy.artwork }} style={styles.cardImage} />
+                    ) : (
+                        <View style={[styles.cardImage, styles.placeholderImage, { backgroundColor: dummy.id === 'add' ? '#1DD75F' : getDynamicColor(dummy.title) }]}>
+                            <Ionicons name={dummy.icon as any} size={32} color={dummy.id === 'add' ? '#000' : colors.textSecondary} />
+                        </View>
+                    )}
+                    <Text style={styles.cardTitle} numberOfLines={1}>{dummy.title}</Text>
+                    <Text style={styles.cardSubtitle} numberOfLines={1}>{dummy.sub}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+
       </ScrollView>
+
+      <AddToPlaylistModal
+        visible={addToPlaylistVisible}
+        track={selectedTrackForAdd}
+        onClose={() => setAddToPlaylistVisible(false)}
+      />
+
+      <AddToDocCategoryModal
+        visible={addToCategoryVisible}
+        document={selectedDocForAdd}
+        onClose={() => setAddToCategoryVisible(false)}
+      />
     </View>
   );
 };

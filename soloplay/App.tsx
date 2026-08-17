@@ -11,6 +11,7 @@ import { MusicDashboardScreen } from './src/screens/MusicDashboardScreen';
 import { YoutubeDownloaderScreen } from './src/screens/YoutubeDownloaderScreen';
 import { WebBrowserScreen } from './src/screens/WebBrowserScreen';
 import { ScanScreen } from './src/screens/ScanScreen';
+import DocumentsScreen from './src/screens/DocumentsScreen';
 import { colors } from './src/theme/theme';
 import { usePlayerStore } from './src/store/usePlayerStore';
 import { BottomTabBar } from './src/components/BottomTabBar';
@@ -100,6 +101,9 @@ const Main = () => {
           <ScanScreen 
             onBack={() => setScreen({ name: 'Dashboard' })}
           />
+        )}
+        {screen.name === 'Documents' && (
+          <DocumentsScreen />
         )}
         {screen.name === 'Playlist' && (
           <PlaylistScreen 
