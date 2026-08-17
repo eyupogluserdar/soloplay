@@ -39,39 +39,61 @@ export function ScanScreen({ onBack }: any) {
   // PanResponder for custom crop box
   const startRect = useRef({ x: 0, y: 0, w: 0, h: 0 });
   const activeEdge = useRef<string | null>(null);
-  const initialPinch = useRef({ xDist: 0, yDist: 0 });
+  
+  // Zoom states
+  const imgTransformRef = useRef({ scale: 1, translateX: 0, translateY: 0 });
+  const [imgTransformState, setImgTransformState] = useState({ scale: 1, translateX: 0, translateY: 0 });
+  const startImgTransform = useRef({ scale: 1, translateX: 0, translateY: 0 });
+  const initialPinch = useRef({ dist: 0, cx: 0, cy: 0 });
 
   const panResponder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
     onPanResponderGrant: (evt, gestureState) => {
       startRect.current = { ...cropRectRef.current };
+      startImgTransform.current = { ...imgTransformRef.current };
       const touches = evt.nativeEvent.touches;
       
       if (touches.length === 2) {
+        const dx = touches[0].pageX - touches[1].pageX;
+        const dy = touches[0].pageY - touches[1].pageY;
         initialPinch.current = {
-          xDist: Math.abs(touches[0].pageX - touches[1].pageX),
-          yDist: Math.abs(touches[0].pageY - touches[1].pageY),
+          dist: Math.sqrt(dx*dx + dy*dy),
+          cx: (touches[0].pageX + touches[1].pageX) / 2,
+          cy: (touches[0].pageY + touches[1].pageY) / 2,
         };
-        activeEdge.current = 'pinch';
+        activeEdge.current = 'image-zoom';
         return;
       }
 
       const { locationX, locationY } = evt.nativeEvent;
       const rect = cropRectRef.current;
-      const THRESHOLD = 50; // Touch area threshold for edges
+      
+      const moveHandleX = rect.x + rect.w / 2;
+      const moveHandleY = rect.y + rect.h + 25;
       
       let edge = '';
-      if (Math.abs(locationY - rect.y) < THRESHOLD) edge += 'top';
-      else if (Math.abs(locationY - (rect.y + rect.h)) < THRESHOLD) edge += 'bottom';
       
-      if (Math.abs(locationX - rect.x) < THRESHOLD) edge += 'left';
-      else if (Math.abs(locationX - (rect.x + rect.w)) < THRESHOLD) edge += 'right';
-      
-      if (!edge) {
-        if (locationX > rect.x && locationX < rect.x + rect.w && locationY > rect.y && locationY < rect.y + rect.h) {
-          edge = 'center';
-        }
+      // 1. Kutunun dışındaki taşıma iğnesine (Move handle) öncelik ver
+      if (Math.abs(locationX - moveHandleX) < 40 && Math.abs(locationY - moveHandleY) < 40) {
+        edge = 'center';
+      } else {
+          // 2. Kenarları dinamik algıla (Kutu küçülünce köşeler birbirine girmesin diye max sınır koy)
+          const THRESHOLD = Math.min(60, rect.w / 3, rect.h / 3); 
+          
+          if (Math.abs(locationY - rect.y) < THRESHOLD) edge += 'top';
+          else if (Math.abs(locationY - (rect.y + rect.h)) < THRESHOLD) edge += 'bottom';
+          
+          if (Math.abs(locationX - rect.x) < THRESHOLD) edge += 'left';
+          else if (Math.abs(locationX - (rect.x + rect.w)) < THRESHOLD) edge += 'right';
+          
+          if (!edge) {
+            if (locationX > rect.x && locationX < rect.x + rect.w && locationY > rect.y && locationY < rect.y + rect.h) {
+              edge = 'center';
+            } else {
+              edge = 'image-pan'; // Outside crop box -> Pan Image
+            }
+          }
       }
       activeEdge.current = edge;
     },
@@ -79,40 +101,63 @@ export function ScanScreen({ onBack }: any) {
       const touches = evt.nativeEvent.touches;
       
       if (touches.length === 2) {
-        if (activeEdge.current !== 'pinch') {
-          activeEdge.current = 'pinch';
-          startRect.current = { ...cropRectRef.current };
+        if (activeEdge.current !== 'image-zoom') {
+          activeEdge.current = 'image-zoom';
+          startImgTransform.current = { ...imgTransformRef.current };
+          const dx = touches[0].pageX - touches[1].pageX;
+          const dy = touches[0].pageY - touches[1].pageY;
           initialPinch.current = {
-            xDist: Math.abs(touches[0].pageX - touches[1].pageX),
-            yDist: Math.abs(touches[0].pageY - touches[1].pageY),
+            dist: Math.sqrt(dx*dx + dy*dy),
+            cx: (touches[0].pageX + touches[1].pageX) / 2,
+            cy: (touches[0].pageY + touches[1].pageY) / 2,
           };
         }
         
-        const currXDist = Math.abs(touches[0].pageX - touches[1].pageX);
-        const currYDist = Math.abs(touches[0].pageY - touches[1].pageY);
+        const currDx = touches[0].pageX - touches[1].pageX;
+        const currDy = touches[0].pageY - touches[1].pageY;
+        const currDist = Math.sqrt(currDx*currDx + currDy*currDy);
+        const currCx = (touches[0].pageX + touches[1].pageX) / 2;
+        const currCy = (touches[0].pageY + touches[1].pageY) / 2;
         
-        const deltaX = currXDist - initialPinch.current.xDist;
-        const deltaY = currYDist - initialPinch.current.yDist;
-        
-        let newRect = { ...startRect.current };
-        newRect.w = Math.max(60, startRect.current.w + deltaX);
-        newRect.h = Math.max(60, startRect.current.h + deltaY);
-        newRect.x = startRect.current.x - (newRect.w - startRect.current.w) / 2;
-        newRect.y = startRect.current.y - (newRect.h - startRect.current.h) / 2;
-        
-        cropRectRef.current = newRect;
-        setCropRectState(newRect);
+        if (initialPinch.current.dist > 0) {
+           const scaleDelta = currDist / initialPinch.current.dist;
+           let newScale = startImgTransform.current.scale * scaleDelta;
+           newScale = Math.max(1, Math.min(newScale, 10)); // Min 1x, Max 10x
+           
+           const panX = currCx - initialPinch.current.cx;
+           const panY = currCy - initialPinch.current.cy;
+           
+           const newTransform = {
+               scale: newScale,
+               translateX: startImgTransform.current.translateX + panX,
+               translateY: startImgTransform.current.translateY + panY,
+           };
+           imgTransformRef.current = newTransform;
+           setImgTransformState(newTransform);
+        }
         return;
       } else if (touches.length === 1) {
-        if (activeEdge.current === 'pinch') {
+        if (activeEdge.current === 'image-zoom') {
           activeEdge.current = null;
           return;
         }
       }
 
       if (!activeEdge.current) return;
-      let newRect = { ...startRect.current };
       const edge = activeEdge.current;
+      
+      if (edge === 'image-pan') {
+          const newTransform = {
+              scale: startImgTransform.current.scale,
+              translateX: startImgTransform.current.translateX + gestureState.dx,
+              translateY: startImgTransform.current.translateY + gestureState.dy,
+          };
+          imgTransformRef.current = newTransform;
+          setImgTransformState(newTransform);
+          return;
+      }
+
+      let newRect = { ...startRect.current };
       
       if (edge.includes('top')) {
           newRect.y += gestureState.dy;
@@ -133,7 +178,6 @@ export function ScanScreen({ onBack }: any) {
           newRect.y += gestureState.dy;
       }
       
-      // Min dimensions and boundaries
       if (newRect.w < 60) newRect.w = 60;
       if (newRect.h < 60) newRect.h = 60;
       
@@ -184,14 +228,31 @@ export function ScanScreen({ onBack }: any) {
       const scale = Math.min(containerDim.w / imgW, containerDim.h / imgH);
       const renderedW = imgW * scale;
       const renderedH = imgH * scale;
-      const offsetX = (containerDim.w - renderedW) / 2;
-      const offsetY = (containerDim.h - renderedH) / 2;
+      const baseOffsetX = (containerDim.w - renderedW) / 2;
+      const baseOffsetY = (containerDim.h - renderedH) / 2;
       
       const box = cropRectRef.current;
-      const minX = (box.x - offsetX) / scale;
-      const maxX = (box.x + box.w - offsetX) / scale;
-      const minY = (box.y - offsetY) / scale;
-      const maxY = (box.y + box.h - offsetY) / scale;
+      const transform = imgTransformRef.current;
+      const CX = containerDim.w / 2;
+      const CY = containerDim.h / 2;
+      
+      // Reverse mapping from screen coordinates to raw image coordinates
+      // Formula: raw = (((screen - translateX - CX) / zoomScale) + CX - baseOffset) / baseScale
+      
+      const getRawX = (screenX: number) => {
+          const containedX = ((screenX - transform.translateX - CX) / transform.scale) + CX;
+          return (containedX - baseOffsetX) / scale;
+      };
+      
+      const getRawY = (screenY: number) => {
+          const containedY = ((screenY - transform.translateY - CY) / transform.scale) + CY;
+          return (containedY - baseOffsetY) / scale;
+      };
+
+      const minX = getRawX(box.x);
+      const maxX = getRawX(box.x + box.w);
+      const minY = getRawY(box.y);
+      const maxY = getRawY(box.y + box.h);
 
       let allLines: any[] = [];
       result.blocks.forEach((b: any) => {
@@ -373,7 +434,13 @@ export function ScanScreen({ onBack }: any) {
             {galleryImageUri ? (
               <Image 
                 source={{ uri: galleryImageUri }} 
-                style={StyleSheet.absoluteFillObject} 
+                style={[StyleSheet.absoluteFillObject, { 
+                  transform: [
+                    { translateX: imgTransformState.translateX },
+                    { translateY: imgTransformState.translateY },
+                    { scale: imgTransformState.scale }
+                  ]
+                }]} 
                 resizeMode="contain" 
               />
             ) : (
@@ -402,6 +469,17 @@ export function ScanScreen({ onBack }: any) {
                 <View style={[styles.cornerHandle, { top: -4, right: -4, borderTopWidth: 4, borderRightWidth: 4 }]} />
                 <View style={[styles.cornerHandle, { bottom: -4, left: -4, borderBottomWidth: 4, borderLeftWidth: 4 }]} />
                 <View style={[styles.cornerHandle, { bottom: -4, right: -4, borderBottomWidth: 4, borderRightWidth: 4 }]} />
+                
+                {/* Kenar Ortası İğne (Pin) Tutamaçları */}
+                <View style={[styles.edgeHandle, { top: -6, left: '50%', marginLeft: -15, width: 30, height: 8 }]} />
+                <View style={[styles.edgeHandle, { bottom: -6, left: '50%', marginLeft: -15, width: 30, height: 8 }]} />
+                <View style={[styles.edgeHandle, { left: -6, top: '50%', marginTop: -15, width: 8, height: 30 }]} />
+                <View style={[styles.edgeHandle, { right: -6, top: '50%', marginTop: -15, width: 8, height: 30 }]} />
+                
+                {/* Kutunun Altında Taşıma (Move) İğnesi */}
+                <View style={[styles.centerMoveHandle, { top: '100%', left: '50%', marginTop: 10, marginLeft: -16 }]}>
+                  <Ionicons name="move" size={18} color="#fff" />
+                </View>
               </View>
             )}
 
@@ -484,6 +562,8 @@ const styles = StyleSheet.create({
   instructionContainer: { position: 'absolute', top: 30, left: 0, right: 0, alignItems: 'center' },
   instructionText: { color: 'white', fontSize: 13, backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, overflow: 'hidden' },
   cornerHandle: { position: 'absolute', width: 25, height: 25, borderColor: '#1DD75F' },
+  edgeHandle: { position: 'absolute', backgroundColor: '#1DD75F', borderRadius: 4 },
+  centerMoveHandle: { position: 'absolute', width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(29,215,95,0.7)', borderWidth: 2, borderColor: '#fff', justifyContent: 'center', alignItems: 'center' },
   fixedCornerHandle: { position: 'absolute', width: 40, height: 40, borderColor: '#1DD75F' },
   customCropControls: { position: 'absolute', bottom: 40, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-evenly', alignItems: 'center' },
   cropCancelBtn: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 30, paddingVertical: 15, borderRadius: 12 },
