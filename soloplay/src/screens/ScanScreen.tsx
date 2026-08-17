@@ -10,12 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-const FRAME_TYPES = [
-  { id: 'portrait', icon: 'document-text', label: 'Dikey (A4)', wPct: 0.95, hPct: 0.72 },
-  { id: 'landscape', icon: 'laptop', label: 'Yatay (PC)', wPct: 0.65, hPct: 0.72 },
-  { id: 'square', icon: 'scan', label: 'Kutu', wPct: 0.75, hPct: 0.40 },
-  { id: 'line', icon: 'remove', label: 'Satır', wPct: 0.90, hPct: 0.12 },
-];
+
 
 export function ScanScreen({ onBack }: any) {
   const insets = useSafeAreaInsets();
@@ -25,7 +20,6 @@ export function ScanScreen({ onBack }: any) {
   const [isScanning, setIsScanning] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [capturedText, setCapturedText] = useState('');
-  const [activeFrameIdx, setActiveFrameIdx] = useState(0);
   const [containerDim, setContainerDim] = useState({ w: SCREEN_W, h: SCREEN_H });
 
   // Gallery Crop States
@@ -36,8 +30,6 @@ export function ScanScreen({ onBack }: any) {
   const cropRectRef = useRef(initialRect);
   const [cropRectState, setCropRectState] = useState(initialRect);
 
-  const activeFrame = FRAME_TYPES[activeFrameIdx];
-
   useEffect(() => {
     if (permission && !permission.granted && permission.canAskAgain) {
       requestPermission();
@@ -47,12 +39,24 @@ export function ScanScreen({ onBack }: any) {
   // PanResponder for custom crop box
   const startRect = useRef({ x: 0, y: 0, w: 0, h: 0 });
   const activeEdge = useRef<string | null>(null);
+  const initialPinch = useRef({ xDist: 0, yDist: 0 });
 
   const panResponder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
     onPanResponderGrant: (evt, gestureState) => {
       startRect.current = { ...cropRectRef.current };
+      const touches = evt.nativeEvent.touches;
+      
+      if (touches.length === 2) {
+        initialPinch.current = {
+          xDist: Math.abs(touches[0].pageX - touches[1].pageX),
+          yDist: Math.abs(touches[0].pageY - touches[1].pageY),
+        };
+        activeEdge.current = 'pinch';
+        return;
+      }
+
       const { locationX, locationY } = evt.nativeEvent;
       const rect = cropRectRef.current;
       const THRESHOLD = 50; // Touch area threshold for edges
@@ -72,6 +76,40 @@ export function ScanScreen({ onBack }: any) {
       activeEdge.current = edge;
     },
     onPanResponderMove: (evt, gestureState) => {
+      const touches = evt.nativeEvent.touches;
+      
+      if (touches.length === 2) {
+        if (activeEdge.current !== 'pinch') {
+          activeEdge.current = 'pinch';
+          startRect.current = { ...cropRectRef.current };
+          initialPinch.current = {
+            xDist: Math.abs(touches[0].pageX - touches[1].pageX),
+            yDist: Math.abs(touches[0].pageY - touches[1].pageY),
+          };
+        }
+        
+        const currXDist = Math.abs(touches[0].pageX - touches[1].pageX);
+        const currYDist = Math.abs(touches[0].pageY - touches[1].pageY);
+        
+        const deltaX = currXDist - initialPinch.current.xDist;
+        const deltaY = currYDist - initialPinch.current.yDist;
+        
+        let newRect = { ...startRect.current };
+        newRect.w = Math.max(60, startRect.current.w + deltaX);
+        newRect.h = Math.max(60, startRect.current.h + deltaY);
+        newRect.x = startRect.current.x - (newRect.w - startRect.current.w) / 2;
+        newRect.y = startRect.current.y - (newRect.h - startRect.current.h) / 2;
+        
+        cropRectRef.current = newRect;
+        setCropRectState(newRect);
+        return;
+      } else if (touches.length === 1) {
+        if (activeEdge.current === 'pinch') {
+          activeEdge.current = null;
+          return;
+        }
+      }
+
       if (!activeEdge.current) return;
       let newRect = { ...startRect.current };
       const edge = activeEdge.current;
@@ -132,11 +170,17 @@ export function ScanScreen({ onBack }: any) {
       setIsProcessing(true);
       const result = await TextRecognition.recognize(galleryImageUri);
       
-      // Calculate mapping from Screen UI to Image Raw Pixels
-      const imgW = galleryImageDim.w;
-      const imgH = galleryImageDim.h;
+      let imgW = galleryImageDim.w;
+      let imgH = galleryImageDim.h;
       
-      // resizeMode="contain" math
+      const isLandscapePhotoOnPortraitUI = imgW > imgH && containerDim.h > containerDim.w;
+      
+      if (isLandscapePhotoOnPortraitUI) {
+        // Pretend the image is Portrait for UI coordinate mapping
+        imgW = galleryImageDim.h;
+        imgH = galleryImageDim.w;
+      }
+      
       const scale = Math.min(containerDim.w / imgW, containerDim.h / imgH);
       const renderedW = imgW * scale;
       const renderedH = imgH * scale;
@@ -149,29 +193,88 @@ export function ScanScreen({ onBack }: any) {
       const minY = (box.y - offsetY) / scale;
       const maxY = (box.y + box.h - offsetY) / scale;
 
-      const filteredBlocks = result.blocks.filter(b => {
-        if (!b.frame) return true;
-        const blockCenterY = b.frame.top + (b.frame.height / 2);
-        const blockCenterX = b.frame.left + (b.frame.width / 2);
-        return blockCenterY >= minY && blockCenterY <= maxY && blockCenterX >= minX && blockCenterX <= maxX;
+      let allLines: any[] = [];
+      result.blocks.forEach((b: any) => {
+        if (b.lines && b.lines.length > 0) {
+          allLines.push(...b.lines);
+        } else {
+          allLines.push(b);
+        }
+      });
+
+      const filteredLines = allLines.filter(line => {
+        if (!line.frame) return true;
+        let lineCenterY = line.frame.top + (line.frame.height / 2);
+        let lineCenterX = line.frame.left + (line.frame.width / 2);
+        
+        if (isLandscapePhotoOnPortraitUI) {
+            const rawX = lineCenterX;
+            const rawY = lineCenterY;
+            lineCenterX = galleryImageDim.h - rawY; 
+            lineCenterY = rawX;        
+        }
+        
+        return lineCenterY >= minY && lineCenterY <= maxY && lineCenterX >= minX && lineCenterX <= maxX;
       });
       
-      if (!filteredBlocks || filteredBlocks.length === 0) {
+      if (!filteredLines || filteredLines.length === 0) {
         Alert.alert('Bulunamadı', 'Kutunun içinde metin algılanamadı.');
         setIsProcessing(false);
         return;
       }
       
-      const sortedBlocks = [...filteredBlocks].sort((a, b) => {
-        const aTop = a.frame?.top ?? 0;
-        const bTop = b.frame?.top ?? 0;
-        const aLeft = a.frame?.left ?? 0;
-        const bLeft = b.frame?.left ?? 0;
-        if (Math.abs(aTop - bTop) < 20) return aLeft - bLeft;
-        return aTop - bTop;
+      const sortedByTop = [...filteredLines].sort((a, b) => (a.frame?.top ?? 0) - (b.frame?.top ?? 0));
+      
+      const groupedRows: any[][] = [];
+      sortedByTop.forEach(line => {
+         const top = line.frame?.top ?? 0;
+         const height = line.frame?.height ?? 20;
+         const centerY = top + height / 2;
+         
+         let added = false;
+         if (groupedRows.length > 0) {
+            const lastRow = groupedRows[groupedRows.length - 1];
+            let sumCenterY = 0;
+            lastRow.forEach(g => {
+                const gTop = g.frame?.top ?? 0;
+                const gHeight = g.frame?.height ?? 20;
+                sumCenterY += (gTop + gHeight / 2);
+            });
+            const avgCenterY = sumCenterY / lastRow.length;
+            
+            if (Math.abs(centerY - avgCenterY) < (height * 0.75)) {
+               lastRow.push(line);
+               added = true;
+            }
+         }
+         if (!added) {
+            groupedRows.push([line]);
+         }
       });
+      
+      let fullTextStr = '';
+      for (let i = 0; i < groupedRows.length; i++) {
+          const row = groupedRows[i];
+          row.sort((a, b) => (a.frame?.left ?? 0) - (b.frame?.left ?? 0));
+          const rowText = row.map(line => line.text).join('    ');
+          
+          if (i === 0) {
+              fullTextStr += rowText;
+          } else {
+              const prevRow = groupedRows[i-1];
+              const prevTop = prevRow[0].frame?.top ?? 0;
+              const prevHeight = prevRow[0].frame?.height ?? 20;
+              const currTop = row[0].frame?.top ?? 0;
+              const currHeight = row[0].frame?.height ?? 20;
+              
+              if ((currTop - (prevTop + prevHeight)) > (currHeight * 0.8)) {
+                  fullTextStr += '\n\n' + rowText;
+              } else {
+                  fullTextStr += '\n' + rowText;
+              }
+          }
+      }
 
-      const fullTextStr = sortedBlocks.map(b => b.text).join('\n\n');
       setCapturedText(fullTextStr);
       setGalleryImageUri(null); // Clear gallery state
       setIsScanning(false);
@@ -189,69 +292,21 @@ export function ScanScreen({ onBack }: any) {
     try {
       setIsProcessing(true);
       const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.7,
-        skipProcessing: true,
+        quality: 1,
       });
       
       if (!photo || !photo.uri) {
         throw new Error("Fotoğraf alınamadı.");
       }
       
-      const result = await TextRecognition.recognize(photo.uri);
+      // Fotoğraf çekildiğinde hemen OCR yapma. Kullanıcıya net resmi göster (Gallery Mode gibi)
+      // Kadrajı bu net resim üzerinde ayarlamasını sağla.
+      setGalleryImageUri(photo.uri);
+      setGalleryImageDim({ w: photo.width, h: photo.height });
       
-      let imgW = photo.width;
-      let imgH = photo.height;
-      
-      if (containerDim.h > containerDim.w && imgW > imgH) {
-        imgW = photo.height;
-        imgH = photo.width;
-      }
-      
-      const scale = Math.max(containerDim.w / imgW, containerDim.h / imgH);
-      const displayedW = imgW * scale;
-      const displayedH = imgH * scale;
-      
-      const offsetX = (containerDim.w - displayedW) / 2;
-      const offsetY = (containerDim.h - displayedH) / 2;
-      
-      const boxLeft = containerDim.w * (0.5 - (activeFrame.wPct / 2));
-      const boxRight = containerDim.w * (0.5 + (activeFrame.wPct / 2));
-      const boxTop = containerDim.h * (0.5 - (activeFrame.hPct / 2));
-      const boxBottom = containerDim.h * (0.5 + (activeFrame.hPct / 2));
-      
-      const minX = (boxLeft - offsetX) / scale;
-      const maxX = (boxRight - offsetX) / scale;
-      const minY = (boxTop - offsetY) / scale;
-      const maxY = (boxBottom - offsetY) / scale;
-
-      const filteredBlocks = result.blocks.filter(b => {
-        if (!b.frame) return true;
-        const blockCenterY = b.frame.top + (b.frame.height / 2);
-        const blockCenterX = b.frame.left + (b.frame.width / 2);
-        return blockCenterY >= minY && blockCenterY <= maxY && blockCenterX >= minX && blockCenterX <= maxX;
-      });
-      
-      if (!filteredBlocks || filteredBlocks.length === 0) {
-        Alert.alert('Bulunamadı', 'Kadrajın içinde metin algılanamadı.');
-        setIsProcessing(false);
-        return;
-      }
-      
-      const sortedBlocks = [...filteredBlocks].sort((a, b) => {
-        const aTop = a.frame?.top ?? 0;
-        const bTop = b.frame?.top ?? 0;
-        const aLeft = a.frame?.left ?? 0;
-        const bLeft = b.frame?.left ?? 0;
-        if (Math.abs(aTop - bTop) < 20) return aLeft - bLeft;
-        return aTop - bTop;
-      });
-
-      const fullTextStr = sortedBlocks.map(b => b.text).join('\n\n');
-      setCapturedText(fullTextStr);
-      setIsScanning(false);
     } catch (e: any) {
-      console.log('Tarama hatası:', e);
-      Alert.alert('Hata', `Tarama başarısız: ${e.message || JSON.stringify(e)}`);
+      console.log('Kamera hatası:', e);
+      Alert.alert('Hata', `Fotoğraf çekilemedi: ${e.message || JSON.stringify(e)}`);
     } finally {
       setIsProcessing(false);
     }
@@ -314,92 +369,75 @@ export function ScanScreen({ onBack }: any) {
 
       {isScanning ? (
         <View style={styles.cameraContainer} onLayout={e => setContainerDim({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
-          {galleryImageUri ? (
-            <>
-              <View style={{ flex: 1, backgroundColor: '#111' }} {...panResponder.panHandlers}>
-                <Image 
-                  source={{ uri: galleryImageUri }} 
-                  style={StyleSheet.absoluteFillObject} 
-                  resizeMode="contain" 
-                />
-
-                {/* Dinamik Kırpma Kutusu */}
-                <View style={{
-                  position: 'absolute',
-                  left: cropRectState.x,
-                  top: cropRectState.y,
-                  width: cropRectState.w,
-                  height: cropRectState.h,
-                  borderWidth: 4,
-                  borderColor: '#1DD75F',
-                }} pointerEvents="none">
-                  {/* 4 Köşe Tutamacı */}
-                  <View style={[styles.cornerHandle, { top: -4, left: -4, borderTopWidth: 4, borderLeftWidth: 4 }]} />
-                  <View style={[styles.cornerHandle, { top: -4, right: -4, borderTopWidth: 4, borderRightWidth: 4 }]} />
-                  <View style={[styles.cornerHandle, { bottom: -4, left: -4, borderBottomWidth: 4, borderLeftWidth: 4 }]} />
-                  <View style={[styles.cornerHandle, { bottom: -4, right: -4, borderBottomWidth: 4, borderRightWidth: 4 }]} />
-                </View>
-              </View>
-
-              <View style={styles.customCropControls} pointerEvents="box-none">
-                <TouchableOpacity style={styles.cropCancelBtn} onPress={() => setGalleryImageUri(null)}>
-                  <Text style={{ color: 'white', fontWeight: 'bold' }}>İptal</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.cropScanBtn} onPress={processGalleryOCR} disabled={isProcessing}>
-                  {isProcessing ? <ActivityIndicator color="#000" /> : <Text style={{ color: '#000', fontWeight: 'bold' }}>TARA</Text>}
-                </TouchableOpacity>
-              </View>
-            </>
-          ) : (
-            <>
+          <View style={{ flex: 1, backgroundColor: '#111' }} {...panResponder.panHandlers}>
+            {galleryImageUri ? (
+              <Image 
+                source={{ uri: galleryImageUri }} 
+                style={StyleSheet.absoluteFillObject} 
+                resizeMode="contain" 
+              />
+            ) : (
               <CameraView
                 ref={cameraRef}
                 style={StyleSheet.absoluteFillObject}
                 facing="back"
                 pictureSize="1920x1080"
+                autofocus="on"
               />
-              
-              <View style={styles.overlay} pointerEvents="none">
-                <View style={[styles.viewfinder, { width: `${activeFrame.wPct * 100}%` as any, height: `${activeFrame.hPct * 100}%` as any }]} />
-                <View style={styles.instructionContainer}>
-                  <Text style={styles.instructionText}>Metinleri çerçeveye ortalayıp butona basın</Text>
-                </View>
-              </View>
-              
-              <View style={styles.frameSelectorContainer}>
-                {FRAME_TYPES.map((f, idx) => {
-                  const isActive = activeFrameIdx === idx;
-                  return (
-                    <TouchableOpacity 
-                      key={f.id} 
-                      style={[styles.frameBtn, isActive && styles.frameBtnActive]} 
-                      onPress={() => setActiveFrameIdx(idx)}
-                    >
-                      <Ionicons name={f.icon as any} size={20} color={isActive ? colors.background : 'white'} />
-                      <Text style={[styles.frameBtnText, isActive && styles.frameBtnTextActive]}>{f.label}</Text>
-                    </TouchableOpacity>
-                  )
-                })}
-              </View>
+            )}
 
-              <View style={[styles.controlsContainer, { paddingHorizontal: 40, justifyContent: 'space-between' }]}>
-                <TouchableOpacity style={styles.galleryButton} onPress={pickImage} disabled={isProcessing}>
-                  <Ionicons name="image" size={32} color="white" />
-                </TouchableOpacity>
-
-                <View style={styles.shutterContainer}>
-                  {isProcessing ? (
-                    <ActivityIndicator size="large" color={colors.primary} />
-                  ) : (
-                    <TouchableOpacity style={styles.shutterButton} onPress={() => onCapture()} disabled={isProcessing}>
-                      <View style={styles.shutterInner} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-                <View style={{ width: 50, height: 50 }} />
+            {/* Dinamik Kırpma Kutusu (Sadece Dondurulmuş Resimde Gösterilir) */}
+            {galleryImageUri && (
+              <View style={{
+                position: 'absolute',
+                left: cropRectState.x,
+                top: cropRectState.y,
+                width: cropRectState.w,
+                height: cropRectState.h,
+                borderWidth: 4,
+                borderColor: '#1DD75F',
+              }} pointerEvents="none">
+                {/* 4 Köşe Tutamacı */}
+                <View style={[styles.cornerHandle, { top: -4, left: -4, borderTopWidth: 4, borderLeftWidth: 4 }]} />
+                <View style={[styles.cornerHandle, { top: -4, right: -4, borderTopWidth: 4, borderRightWidth: 4 }]} />
+                <View style={[styles.cornerHandle, { bottom: -4, left: -4, borderBottomWidth: 4, borderLeftWidth: 4 }]} />
+                <View style={[styles.cornerHandle, { bottom: -4, right: -4, borderBottomWidth: 4, borderRightWidth: 4 }]} />
               </View>
-            </>
-          )}
+            )}
+
+            {/* Sabit L Hizalama Çizgileri (Sadece Canlı Kamerada Gösterilir) */}
+            {!galleryImageUri && (
+              <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+                {/* Sol Üst L */}
+                <View style={[styles.fixedCornerHandle, { top: 40, left: 20, borderTopWidth: 4, borderLeftWidth: 4 }]} />
+                {/* Sağ Üst L */}
+                <View style={[styles.fixedCornerHandle, { top: 40, right: 20, borderTopWidth: 4, borderRightWidth: 4 }]} />
+                {/* Sol Alt L */}
+                <View style={[styles.fixedCornerHandle, { bottom: 120, left: 20, borderBottomWidth: 4, borderLeftWidth: 4 }]} />
+                {/* Sağ Alt L */}
+                <View style={[styles.fixedCornerHandle, { bottom: 120, right: 20, borderBottomWidth: 4, borderRightWidth: 4 }]} />
+              </View>
+            )}
+            
+          </View>
+
+          <View style={styles.customCropControls} pointerEvents="box-none">
+            {galleryImageUri ? (
+              <TouchableOpacity style={styles.cropCancelBtn} onPress={() => setGalleryImageUri(null)}>
+                <Text style={{ color: 'white', fontWeight: 'bold' }}>İptal</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.galleryButton} onPress={pickImage} disabled={isProcessing}>
+                <Ionicons name="image" size={32} color="white" />
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity style={styles.cropScanBtn} onPress={galleryImageUri ? processGalleryOCR : onCapture} disabled={isProcessing}>
+              {isProcessing ? <ActivityIndicator color="#000" /> : <Text style={{ color: '#000', fontWeight: 'bold' }}>{galleryImageUri ? "TARA" : "FOTOĞRAF ÇEK"}</Text>}
+            </TouchableOpacity>
+
+            {!galleryImageUri && <View style={{ width: 50, height: 50 }} />}
+          </View>
         </View>
       ) : (
         <View style={styles.resultContainer}>
@@ -442,25 +480,11 @@ const styles = StyleSheet.create({
   logoContainer: { flexDirection: 'row', alignItems: 'center' },
   logoTextSolo: { fontSize: 20, fontWeight: '900', color: colors.text, letterSpacing: -0.5 },
   cameraContainer: { flex: 1, position: 'relative', backgroundColor: '#000' },
-  overlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center' },
-  viewfinder: { borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)', borderRadius: 16, borderStyle: 'dashed' },
-  instructionContainer: { position: 'absolute', bottom: 120, left: 0, right: 0, alignItems: 'center' },
-  instructionText: { color: 'white', fontSize: 14, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, overflow: 'hidden' },
-  
-  frameSelectorContainer: { position: 'absolute', top: 20, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingHorizontal: 10, flexWrap: 'wrap' },
-  frameBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
-  frameBtnActive: { backgroundColor: 'white', borderColor: 'white' },
-  frameBtnText: { color: 'white', fontSize: 13, fontWeight: '600', marginLeft: 6 },
-  frameBtnTextActive: { color: colors.background },
-
-  controlsContainer: { position: 'absolute', bottom: 40, left: 0, right: 0, flexDirection: 'row', alignItems: 'center' },
-  galleryButton: { width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
-  shutterContainer: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(255,255,255,0.3)', justifyContent: 'center', alignItems: 'center' },
-  shutterButton: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'white', justifyContent: 'center', alignItems: 'center' },
-  shutterInner: { width: 54, height: 54, borderRadius: 27, borderWidth: 2, borderColor: '#000' },
-  
   // Custom Crop Styles
+  instructionContainer: { position: 'absolute', top: 30, left: 0, right: 0, alignItems: 'center' },
+  instructionText: { color: 'white', fontSize: 13, backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, overflow: 'hidden' },
   cornerHandle: { position: 'absolute', width: 25, height: 25, borderColor: '#1DD75F' },
+  fixedCornerHandle: { position: 'absolute', width: 40, height: 40, borderColor: '#1DD75F' },
   customCropControls: { position: 'absolute', bottom: 40, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-evenly', alignItems: 'center' },
   cropCancelBtn: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 30, paddingVertical: 15, borderRadius: 12 },
   cropScanBtn: { backgroundColor: '#1DD75F', paddingHorizontal: 50, paddingVertical: 15, borderRadius: 12 },
