@@ -1,0 +1,84 @@
+{
+  "expo": {
+    "name": "SoloPlay",
+    "slug": "soloplay",
+    "scheme": "soloplay",
+    "newArchEnabled": false,
+    "version": "1.0.0",
+    "sdkVersion": "54.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.htmlkod.soloplay",
+      "permissions": [
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_MEDIA_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO",
+        "WAKE_LOCK",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "notification": {
+      "icon": "./assets/android-icon-monochrome.png",
+      "color": "#E6F4FE"
+    },
+    "plugins": [
+      "expo-media-library",
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Metinleri taramak için galerinizden resim seçebilmeniz gerekiyor."
+        }
+      ],
+      "./withTrackPlayerIcon.js",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26,
+            "packagingOptions": {
+              "pickFirst": [
+                "**/libjsi.so",
+                "**/libc++_shared.so",
+                "**/libreactnative.so",
+                "**/libreact_nativemodule_core.so",
+                "**/libturbomodulejsijni.so",
+                "**/libfbjni.so"
+              ]
+            }
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "698fd2bf-c07c-46b6-a5d2-85bdc2a18aac"
+      }
+    }
+  }
+}
