@@ -7,6 +7,7 @@ import { useAudio } from '../context/AudioContext';
 import { usePlayerStore } from '../store/usePlayerStore';
 import type { Track } from '../store/usePlayerStore';
 import { useDocStore } from '../store/useDocStore';
+import { useVideoStore } from '../store/useVideoStore';
 import { CardOverlay } from '../components/CardOverlay';
 import { AddToPlaylistModal } from '../components/AddToPlaylistModal';
 import { AddToDocCategoryModal } from '../components/AddToDocCategoryModal';
@@ -23,6 +24,8 @@ interface DashboardProps {
 export const DashboardScreen = ({ onNavigate, onNavigateToPlaylist, onOpenPlayer }: DashboardProps) => {
   const insets = useSafeAreaInsets();
   const { playTrack } = useAudio();
+  const videoCategories = useVideoStore(state => state.categories);
+  const downloadedVideos = React.useMemo(() => videoCategories.flatMap(c => c.videos), [videoCategories]);
   const playlists = usePlayerStore(state => state.playlists);
   const memory = usePlayerStore(state => state.memory);
   const recentTracks = usePlayerStore(state => state.recentTracks || []);
@@ -199,6 +202,102 @@ export const DashboardScreen = ({ onNavigate, onNavigateToPlaylist, onOpenPlayer
           )}
         </View>
 
+        {/* Videolarım Bölümü */}
+        <View style={styles.mainSection}>
+          {renderSectionHeader('Videolarım', () => onNavigate('Video'), true)}
+          
+          <View style={styles.subSection}>
+            {downloadedVideos && downloadedVideos.length > 0 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScrollContent} decelerationRate="fast" snapToInterval={CARD_WIDTH + 15}>
+                {downloadedVideos.map((video, idx) => (
+                  <TouchableOpacity 
+                    key={`vid_${video.id}_${idx}`} 
+                    style={[styles.card, activeCardId === video.id && { zIndex: 10, elevation: 10 }]} 
+                    onPress={() => {
+                        useVideoStore.getState().setActiveVideo(video);
+                    }}
+                    onLongPress={() => setActiveCardId(video.id)}
+                    activeOpacity={0.7}
+                    disabled={activeCardId === video.id}
+                  >
+                    {video.thumbnail ? (
+                        <Image source={{ uri: video.thumbnail }} style={styles.cardImage} />
+                    ) : (
+                        <View style={[styles.cardImage, styles.placeholderImage, { backgroundColor: getDynamicColor(video.title) }]}>
+                        <Ionicons name="videocam" size={32} color="rgba(255,255,255,0.7)" />
+                        </View>
+                    )}
+                    <CardOverlay
+                      visible={activeCardId === video.id}
+                      onClose={() => setActiveCardId(null)}
+                      options={[
+                        { icon: 'trash', color: '#ff4444', onPress: () => {
+                            Alert.alert('Emin misiniz?', `"${video.title}" videosunu silmek istediğinize emin misiniz?`, [
+                              { text: 'İptal', style: 'cancel' },
+                              { text: 'Sil', style: 'destructive', onPress: async () => {
+                                  // Find category and remove
+                                  const categories = useVideoStore.getState().categories;
+                                  let catId = '';
+                                  for (const c of categories) {
+                                      if (c.videos.find(v => v.id === video.id)) {
+                                          catId = c.id;
+                                          break;
+                                      }
+                                  }
+                                  if (catId) {
+                                      useVideoStore.getState().removeVideoFromCategory(catId, video.id);
+                                  }
+                              }}
+                            ]);
+                        }}
+                      ]}
+                    />
+                    <Text style={styles.cardTitle} numberOfLines={1}>{video.title}</Text>
+                    <Text style={styles.cardSubtitle} numberOfLines={1}>{video.author || video.duration}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScrollContent} decelerationRate="fast" snapToInterval={CARD_WIDTH + 15}>
+                {[
+                  { id: 'v1', title: 'Film Önerisi', sub: 'Aksiyon & Macera', icon: 'videocam', artwork: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&q=80' },
+                  { id: 'v2', title: 'Belgesel Kesiti', sub: 'Doğa & Yaşam', icon: 'videocam', artwork: 'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=500&q=80' },
+                  { id: 'v_add', title: 'Video Ara', sub: 'İndir & İzle', icon: 'search' }
+                ].map((dummy, idx) => (
+                  <TouchableOpacity key={dummy.id} style={styles.card} onPress={() => onNavigate('YoutubeVideoDownloader')} activeOpacity={0.8}>
+                    {dummy.artwork ? (
+                        <Image source={{ uri: dummy.artwork }} style={styles.cardImage} />
+                    ) : dummy.id === 'v_add' ? (
+                        <View style={[styles.cardImage, styles.placeholderImage, { backgroundColor: '#1A1A1A', overflow: 'hidden' }]}>
+                            <View style={{ flexDirection: 'row', position: 'absolute', top: 8, width: '100%', justifyContent: 'space-evenly', opacity: 0.15 }}>
+                                {[1,2,3,4].map(i => <View key={i} style={{ width: 16, height: 12, backgroundColor: '#fff', borderRadius: 2 }} />)}
+                            </View>
+                            
+                            <View style={{ alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+                                <Ionicons name="film" size={64} color="rgba(29, 215, 95, 0.15)" style={{ position: 'absolute' }} />
+                                <View style={{ backgroundColor: '#1DD75F', width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', elevation: 8, shadowColor: '#1DD75F', shadowOffset: {width:0, height:4}, shadowOpacity: 0.5 }}>
+                                    <Ionicons name="search" size={24} color="#000" />
+                                </View>
+                            </View>
+
+                            <View style={{ flexDirection: 'row', position: 'absolute', bottom: 8, width: '100%', justifyContent: 'space-evenly', opacity: 0.15 }}>
+                                {[1,2,3,4].map(i => <View key={i} style={{ width: 16, height: 12, backgroundColor: '#fff', borderRadius: 2 }} />)}
+                            </View>
+                        </View>
+                    ) : (
+                        <View style={[styles.cardImage, styles.placeholderImage, { backgroundColor: dummy.id === 'add' ? '#1DD75F' : getDynamicColor(dummy.title) }]}>
+                            <Ionicons name={dummy.icon as any} size={32} color={dummy.id === 'add' ? '#000' : colors.textSecondary} />
+                        </View>
+                    )}
+                    <Text style={styles.cardTitle} numberOfLines={1}>{dummy.title}</Text>
+                    <Text style={styles.cardSubtitle} numberOfLines={1}>{dummy.sub}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+
         <View style={styles.mainSection}>
           {renderSectionHeader('OCR Taranan Belgeler', () => onNavigate('Documents'), true)}
           <View style={styles.subSection}>
@@ -248,8 +347,8 @@ export const DashboardScreen = ({ onNavigate, onNavigateToPlaylist, onOpenPlayer
                   <TouchableOpacity key={dummy.id} style={styles.card} onPress={() => onNavigate('Scan')} activeOpacity={0.8}>
                     {dummy.artworkLocal ? (
                         <Image source={dummy.artworkLocal} style={styles.cardImage} />
-                    ) : dummy.artwork ? (
-                        <Image source={{ uri: dummy.artwork }} style={styles.cardImage} />
+                    ) : (dummy as any).artwork ? (
+                        <Image source={{ uri: (dummy as any).artwork }} style={styles.cardImage} />
                     ) : (
                         <View style={[styles.cardImage, styles.placeholderImage, { backgroundColor: dummy.id === 'add' ? '#1DD75F' : getDynamicColor(dummy.title) }]}>
                             <Ionicons name={dummy.icon as any} size={32} color={dummy.id === 'add' ? '#000' : colors.textSecondary} />

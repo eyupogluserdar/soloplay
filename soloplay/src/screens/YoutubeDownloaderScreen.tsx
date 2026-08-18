@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, ActivityIndicator, Image, Keyboard, Linking, Animated, Dimensions, ScrollView, PanResponder, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system/legacy';
-import * as MediaLibrary from 'expo-media-library';
+import { saveToExternalStorage } from '../utils/fileStorage';
 import YoutubeIframe from 'react-native-youtube-iframe';
 import { colors, typography } from '../theme/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -177,11 +177,7 @@ export const YoutubeDownloaderScreen = ({ onBack, onOpenPlayer }: YoutubeDownloa
       }
       
       try {
-        const { status } = await MediaLibrary.requestPermissionsAsync();
-        if (status === 'granted') {
-          const asset = await MediaLibrary.createAssetAsync(downloadResult.uri);
-          await MediaLibrary.createAlbumAsync('SoloPlay', asset, true);
-        }
+        await saveToExternalStorage(downloadResult.uri, fileName, 'Müzik', 'audio/mpeg');
       } catch (e) {
         console.log("Dosya dışa aktarılamadı:", e);
       }

@@ -4,10 +4,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useDocStore } from '../store/useDocStore';
 import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { saveToExternalStorage } from '../utils/fileStorage';
 // Native modüllerin derlenmesi gerektiği için geçici olarak kaldırıldı
 // import * as Print from 'expo-print';
 // import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 interface DocumentEditorProps {
   initialText: string;
@@ -38,14 +39,23 @@ export default function DocumentEditorScreen({ initialText, documentId, imageUri
 
   const handleSave = async () => {
     let finalUri = imageUri;
+    let fileName = `scanned_${Date.now()}.jpg`;
     if (imageUri && !imageUri.startsWith(FileSystem.documentDirectory!)) {
-        const fileName = imageUri.split('/').pop() || `scanned_${Date.now()}.jpg`;
+        fileName = imageUri.split('/').pop() || fileName;
         const newUri = FileSystem.documentDirectory + fileName;
         try {
             await FileSystem.copyAsync({ from: imageUri, to: newUri });
             finalUri = newUri;
         } catch(e) {
             console.log('Resim kaydedilemedi:', e);
+        }
+    }
+
+    if (finalUri) {
+        try {
+            await saveToExternalStorage(finalUri, fileName, 'OCR', 'image/jpeg');
+        } catch(e) {
+            console.log('Resim dışa aktarılamadı:', e);
         }
     }
 
