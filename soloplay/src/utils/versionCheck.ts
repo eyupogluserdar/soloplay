@@ -1,7 +1,6 @@
 import { Alert, Linking, Platform } from 'react-native';
 
-// Sürüm kontrolü için bağlanacağımız adres (Bunu ileride kendi sitenize göre değiştirebilirsiniz)
-const VERSION_URL = 'https://htmlkod.com/api/soloplay-version.json';
+const VERSION_URL = 'https://raw.githubusercontent.com/eyupogluserdar/soloplay/master/soloplay/version.json';
 
 interface VersionData {
   latestVersion: string;
