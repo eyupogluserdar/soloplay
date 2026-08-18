@@ -6,6 +6,8 @@ import { usePlayerStore } from '../store/usePlayerStore';
 import { AnimatedRing } from './AnimatedRing';
 import { colors, typography } from '../theme/theme';
 
+import { CustomSlider } from './CustomSlider';
+
 export const MiniPlayer = ({
   onPress,
   safeAreaBottom,
@@ -15,6 +17,8 @@ export const MiniPlayer = ({
   safeAreaBottom: number;
   bottomOffset?: number;
 }) => {
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragTime, setDragTime] = useState(0);
   const { 
     currentTrackName, 
     isPlaying, 
@@ -84,11 +88,17 @@ export const MiniPlayer = ({
         </View>
 
         <View style={styles.progressContainer}>
-          <View style={styles.progressBarBackground}>
-            <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
-          </View>
+          <CustomSlider
+            durationMillis={durationMillis}
+            positionMillis={positionMillis}
+            onSeek={seek}
+            onDragValueChange={(dragging, val) => {
+              setIsDragging(dragging);
+              setDragTime(val);
+            }}
+          />
           <View style={styles.timeContainer}>
-            <Text style={styles.timeText}>{formatTime(positionMillis)}</Text>
+            <Text style={styles.timeText}>{formatTime(isDragging ? dragTime : positionMillis)}</Text>
             <Text style={styles.timeText}>{formatTime(durationMillis)}</Text>
           </View>
         </View>
@@ -170,6 +180,7 @@ const styles = StyleSheet.create({
   infoContainer: {
     alignItems: 'center',
     marginBottom: 8,
+    paddingHorizontal: 40,
   },
   trackName: {
     ...typography.title,

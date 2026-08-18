@@ -16,14 +16,11 @@ export const requestSAFPermissionIfNeeded = async (): Promise<boolean> => {
   const { safDirectoryUri, hasAskedSafPermission, setSafDirectoryUri, setHasAskedSafPermission } = useSettingsStore.getState();
 
   if (safDirectoryUri) {
-    // Check if permission is still valid (user might have revoked it or app data cleared)
-    // Actually Expo's SAF doesn't easily let us check validity without trying to use it.
-    // We assume it's valid if we have the URI.
     return true;
   }
 
   if (hasAskedSafPermission) {
-    return false; // Already asked and they denied, or it failed.
+    return false;
   }
 
   return new Promise((resolve) => {
@@ -48,8 +45,39 @@ export const requestSAFPermissionIfNeeded = async (): Promise<boolean> => {
               
               if (permissions.granted) {
                 const directoryUri = permissions.directoryUri;
+                
+                // Eski klasör var mı kontrol et
+                const files = await StorageAccessFramework.readDirectoryAsync(directoryUri);
+                const existingSoloPlayUri = files.find(f => decodeURIComponent(f).endsWith('/SoloPlay') || decodeURIComponent(f).endsWith('%2FSoloPlay'));
+                
+                if (existingSoloPlayUri) {
+                  Alert.alert(
+                    "Mevcut Klasör Bulundu",
+                    "Seçtiğiniz klasörde önceden kalma bir 'SoloPlay' klasörü bulduk. İçindeki eski müzik ve videolarınızı uygulamaya geri yüklemek ister misiniz?",
+                    [
+                      {
+                        text: "Hayır, Yeni Aç",
+                        style: "cancel",
+                        onPress: async () => {
+                          setSafDirectoryUri(directoryUri);
+                          await StorageAccessFramework.makeDirectoryAsync(directoryUri, 'SoloPlay' + Date.now().toString().slice(-4));
+                          resolve(true);
+                        }
+                      },
+                      {
+                        text: "Evet, Geri Yükle",
+                        onPress: async () => {
+                          setSafDirectoryUri(directoryUri);
+                          await syncExistingFiles(existingSoloPlayUri);
+                          resolve(true);
+                        }
+                      }
+                    ]
+                  );
+                  return; // Alert'in sonucunu bekliyoruz
+                }
+                
                 setSafDirectoryUri(directoryUri);
-                // Create SoloPlay root folder and subfolders immediately
                 await initializeSAFFolders(directoryUri);
                 resolve(true);
               } else {
@@ -65,6 +93,100 @@ export const requestSAFPermissionIfNeeded = async (): Promise<boolean> => {
       ]
     );
   });
+};
+
+const syncExistingFiles = async (soloPlayUri: string) => {
+  try {
+    const { playlists, addPlaylist, addTrack } = usePlayerStore.getState();
+    let targetPlaylistId = playlists.find(p => p.name === 'YouTube İndirilenler')?.id;
+    if (!targetPlaylistId) {
+      targetPlaylistId = 'yt_downloads_' + Date.now();
+      addPlaylist({ id: targetPlaylistId, name: 'YouTube İndirilenler', tracks: [] });
+    }
+
+    const subFiles = await StorageAccessFramework.readDirectoryAsync(soloPlayUri);
+    
+    // Müzikleri Kurtar
+    const musicFolder = subFiles.find(f => decodeURIComponent(f).endsWith('/Müzik') || decodeURIComponent(f).endsWith('%2FMüzik'));
+    if (musicFolder) {
+      const musicFiles = await StorageAccessFramework.readDirectoryAsync(musicFolder);
+      for (const fileUri of musicFiles) {
+        const decoded = decodeURIComponent(fileUri).toLowerCase();
+        if (decoded.endsWith('.mp3') || decoded.endsWith('.m4a') || decoded.endsWith('.wav')) {
+          const fileName = decodeURIComponent(fileUri).split('/').pop()?.replace(/\.(mp3|m4a|wav)$/i, '') || 'Bilinmeyen Müzik';
+          addTrack(targetPlaylistId, {
+            id: fileUri,
+            name: fileName,
+            uri: fileUri
+          });
+        }
+      }
+    }
+    
+    // Videoları Kurtar
+    const videoFolder = subFiles.find(f => decodeURIComponent(f).endsWith('/Video') || decodeURIComponent(f).endsWith('%2FVideo'));
+    if (videoFolder) {
+      const videoFiles = await StorageAccessFramework.readDirectoryAsync(videoFolder);
+      for (const fileUri of videoFiles) {
+        if (decodeURIComponent(fileUri).toLowerCase().endsWith('.mp4')) {
+          const fileName = decodeURIComponent(fileUri).split('/').pop()?.replace('.mp4', '') || 'Bilinmeyen Video';
+          addTrack(targetPlaylistId, {
+            id: fileUri,
+            name: fileName,
+            uri: fileUri
+          });
+        }
+      }
+    }
+    
+    Alert.alert("Başarılı", "Eski müzik ve videolarınız kütüphanenize (YouTube İndirilenler) başarıyla eklendi!");
+  } catch (e) {
+    console.log("Geri yükleme hatası:", e);
+    Alert.alert("Hata", "Dosyalar geri yüklenirken bir sorun oluştu.");
+  }
+};
+
+export const promptManualRestore = async () => {
+  try {
+    Alert.alert(
+      "Eski Dosyaları Bul",
+      "Lütfen eski SoloPlay klasörünüzü veya onun bulunduğu ana klasörü (Örn: İndirilenler) seçin.",
+      [
+        { text: "İptal", style: "cancel" },
+        {
+          text: "Klasör Seç",
+          onPress: () => {
+            setTimeout(async () => {
+              try {
+                const permissions = await StorageAccessFramework.requestDirectoryPermissionsAsync();
+                if (permissions.granted) {
+                  const directoryUri = permissions.directoryUri;
+                  
+                  if (decodeURIComponent(directoryUri).endsWith('/SoloPlay') || decodeURIComponent(directoryUri).endsWith('%2FSoloPlay') || decodeURIComponent(directoryUri).includes('SoloPlay')) {
+                    await syncExistingFiles(directoryUri);
+                    return;
+                  }
+
+                  const files = await StorageAccessFramework.readDirectoryAsync(directoryUri);
+                  const existingSoloPlayUri = files.find(f => decodeURIComponent(f).endsWith('/SoloPlay') || decodeURIComponent(f).endsWith('%2FSoloPlay'));
+                  
+                  if (existingSoloPlayUri) {
+                    await syncExistingFiles(existingSoloPlayUri);
+                  } else {
+                    Alert.alert("Bulunamadı", "Seçtiğiniz klasörün içinde eski bir 'SoloPlay' dosyası bulamadık. Lütfen doğru yeri seçtiğinizden emin olun.");
+                  }
+                }
+              } catch (e) {
+                console.log("SAF Timeout Error:", e);
+              }
+            }, 400); // Wait for alert to dismiss before opening native picker
+          }
+        }
+      ]
+    );
+  } catch (e) {
+    console.log("Manual restore error:", e);
+  }
 };
 
 const initializeSAFFolders = async (rootUri: string) => {

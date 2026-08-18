@@ -15,7 +15,6 @@ const tabs: Tab[] = [
   { id: 'Documents', title: 'OCR', icon: 'document-text' },
   { id: 'Scan', title: 'Tara', icon: 'scan' },
   { id: 'MusicDashboard', title: 'Müzik', icon: 'musical-notes' },
-  { id: 'Video', title: 'Video', icon: 'play-circle' },
 ];
 
 export const BottomTabBar = ({ 
@@ -28,7 +27,7 @@ export const BottomTabBar = ({
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+    <View style={[styles.container, { paddingBottom: insets.bottom > 0 ? insets.bottom : 8 }]}>
       {tabs.map((tab) => {
         const isActive = currentScreen === tab.id;
         return (
@@ -44,7 +43,7 @@ export const BottomTabBar = ({
                 color={isActive ? colors.background : colors.textSecondary}
               />
             </View>
-            <Text style={[styles.label, isActive && styles.labelActive]}>
+            <Text style={[styles.label, isActive && styles.labelActive]} numberOfLines={1} adjustsFontSizeToFit>
               {tab.title}
             </Text>
           </TouchableOpacity>
@@ -60,9 +59,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.05)',
-    paddingTop: 10,
+    paddingTop: 8,
     justifyContent: 'space-around',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     position: 'absolute',
     bottom: 0,
     left: 0,
@@ -75,7 +74,7 @@ const styles = StyleSheet.create({
   },
   tab: {
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     flex: 1,
   },
   iconContainer: {

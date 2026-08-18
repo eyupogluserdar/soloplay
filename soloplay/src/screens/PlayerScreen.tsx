@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, PanResponder, Animated, Dimensions, Image, Easing } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,11 +8,13 @@ import { colors, typography } from '../theme/theme';
 import TrackPlayer, { RepeatMode } from 'react-native-track-player';
 import { AddToPlaylistModal } from '../components/AddToPlaylistModal';
 
+import { CustomSlider } from '../components/CustomSlider';
+
 const ProgressBar = ({ seek }: { seek: (pos: number) => void }) => {
   const positionMillis = usePlayerStore(state => state.positionMillis);
   const durationMillis = usePlayerStore(state => state.durationMillis);
-  const [isSeeking, setIsSeeking] = useState(false);
-  const [seekPosition, setSeekPosition] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragTime, setDragTime] = useState(0);
 
   const formatTime = (millis: number) => {
     if (!millis || isNaN(millis)) return '0:00';
@@ -24,25 +26,17 @@ const ProgressBar = ({ seek }: { seek: (pos: number) => void }) => {
 
   return (
     <View style={styles.progressContainer}>
-      <Slider
-        style={{ width: '100%', height: 40 }}
-        minimumValue={0}
-        maximumValue={durationMillis || 100}
-        value={isSeeking ? seekPosition : positionMillis}
-        onValueChange={(val) => {
-          setIsSeeking(true);
-          setSeekPosition(val);
+      <CustomSlider
+        durationMillis={durationMillis}
+        positionMillis={positionMillis}
+        onSeek={seek}
+        onDragValueChange={(dragging, val) => {
+          setIsDragging(dragging);
+          setDragTime(val);
         }}
-        onSlidingComplete={(value) => {
-          seek(value);
-          setIsSeeking(false);
-        }}
-        minimumTrackTintColor={colors.primary}
-        maximumTrackTintColor={colors.surfaceLight}
-        thumbTintColor={colors.primary}
       />
       <View style={styles.timeContainer}>
-        <Text style={styles.timeText}>{formatTime(isSeeking ? seekPosition : positionMillis)}</Text>
+        <Text style={styles.timeText}>{formatTime(isDragging ? dragTime : positionMillis)}</Text>
         <Text style={styles.timeText}>{formatTime(durationMillis)}</Text>
       </View>
     </View>
@@ -197,9 +191,9 @@ export const PlayerScreen = ({ onBack }: { onBack: () => void }) => {
           opacity
         }
       ]} 
-      {...panResponder.panHandlers}
     >
-      <View style={styles.header}>
+      <View style={{ flex: 1 }} {...panResponder.panHandlers}>
+        <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <Ionicons name="chevron-down" size={32} color={colors.text} />
         </TouchableOpacity>
@@ -228,8 +222,10 @@ export const PlayerScreen = ({ onBack }: { onBack: () => void }) => {
         </Text>
         <Text style={styles.signatureText}>SoloPlay by htmlkod</Text>
       </View>
+      </View>
 
-      <View style={styles.extraControlsContainer}>
+      <View style={{ paddingHorizontal: 20, paddingBottom: 30 }}>
+        <View style={styles.extraControlsContainer}>
         <TouchableOpacity 
           style={styles.extraButton} 
           onPress={toggleShuffle}
@@ -292,6 +288,7 @@ export const PlayerScreen = ({ onBack }: { onBack: () => void }) => {
         <TouchableOpacity style={styles.controlButton} onPress={playNext}>
           <Ionicons name="play-skip-forward" size={32} color={colors.text} />
         </TouchableOpacity>
+      </View>
       </View>
 
       {currentTrackName && (

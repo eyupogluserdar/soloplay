@@ -9,6 +9,8 @@ import { CardOverlay } from '../components/CardOverlay';
 import { AddToDocCategoryModal } from '../components/AddToDocCategoryModal';
 import { PromptModal } from '../components/PromptModal';
 
+import { promptManualRestore } from '../utils/fileStorage';
+
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.38;
 const CARD_HEIGHT = CARD_WIDTH * 1.33; // 3:4 aspect ratio for documents
@@ -118,6 +120,12 @@ export default function DocumentsScreen() {
           <Text style={styles.headerTitle}>OCR Taranan Belgeler</Text>
         </View>
         <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={styles.headerIconButton} 
+            onPress={promptManualRestore}
+          >
+            <Ionicons name="sync-outline" size={24} color={colors.primary} />
+          </TouchableOpacity>
           <TouchableOpacity 
             style={styles.headerIconButton} 
             onPress={() => setPromptVisible(true)}

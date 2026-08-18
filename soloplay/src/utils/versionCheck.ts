@@ -1,4 +1,3 @@
-import * as Application from 'expo-application';
 import { Alert, Linking, Platform } from 'react-native';
 
 // Sürüm kontrolü için bağlanacağımız adres (Bunu ileride kendi sitenize göre değiştirebilirsiniz)
@@ -30,8 +29,19 @@ const isUpdateAvailable = (currentVersion: string, cloudVersion: string) => {
 
 export const checkAppVersion = async () => {
   try {
+    if (__DEV__) {
+      console.log('Geliştirme modunda sürüm kontrolü atlanıyor.');
+      return;
+    }
+
     // 1. Telefondaki uygulamanın mevcut sürümünü alıyoruz (app.json'daki version)
-    const currentVersion = Application.nativeApplicationVersion || '1.0.0';
+    let currentVersion = '1.0.0';
+    try {
+      const Application = require('expo-application');
+      currentVersion = Application.nativeApplicationVersion || '1.0.0';
+    } catch (e) {
+      console.log('expo-application modülü bulunamadı, varsayılan sürüm kullanılıyor.');
+    }
 
     // 2. İnternetteki adresten en güncel sürüm bilgisini çekiyoruz
     const response = await fetch(VERSION_URL, { cache: 'no-cache' });

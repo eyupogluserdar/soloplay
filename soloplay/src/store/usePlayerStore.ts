@@ -184,7 +184,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       const newPlaylists = state.playlists.map(p => 
         p.id === playlistId ? { ...p, tracks: p.tracks.filter(t => t.uri !== trackUri) } : p
       );
-      const newState = { playlists: newPlaylists };
+      
+      const newRecentTracks = (state.recentTracks || []).filter(t => t.trackUri !== trackUri);
+      
+      const newState = { playlists: newPlaylists, recentTracks: newRecentTracks };
       AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ ...get(), ...newState }));
       return newState;
     });

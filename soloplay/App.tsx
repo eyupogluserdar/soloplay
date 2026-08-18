@@ -16,13 +16,9 @@ import { colors } from './src/theme/theme';
 import { usePlayerStore } from './src/store/usePlayerStore';
 import { BottomTabBar } from './src/components/BottomTabBar';
 import { MiniPlayer } from './src/components/MiniPlayer';
-import { VideoPlayerModal } from './src/components/VideoPlayerModal';
-import VideoScreen from './src/screens/VideoScreen';
-import { YoutubeVideoDownloaderScreen } from './src/screens/YoutubeVideoDownloaderScreen';
 import { PostHogProvider } from 'posthog-react-native';
 import { posthog, trackScreen } from './src/utils/analytics';
 import { checkAppVersion } from './src/utils/versionCheck';
-import { useVideoStore } from './src/store/useVideoStore';
 
 type ScreenState = 
   | { name: 'Dashboard' }
@@ -42,7 +38,6 @@ const Main = () => {
   const { playTrack, currentTrackName } = useAudio();
   const currentPlaylistId = usePlayerStore(state => state.currentPlaylistId);
   const playlists = usePlayerStore(state => state.playlists);
-  const activeVideo = useVideoStore(state => state.activeVideo);
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
@@ -73,7 +68,6 @@ const Main = () => {
 
   useEffect(() => {
     usePlayerStore.getState().loadInitialState().then(() => {});
-    useVideoStore.getState().loadInitialState().then(() => {});
     if (Platform.OS === 'android' && Platform.Version >= 33) {
       PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS)
         .catch(console.error);
@@ -132,17 +126,6 @@ const Main = () => {
             onBack={() => setScreen({ name: 'Dashboard' })}
           />
         )}
-        {screen.name === 'YoutubeVideoDownloader' && (
-          <YoutubeVideoDownloaderScreen 
-            onBack={() => setScreen({ name: 'Video' })}
-          />
-        )}
-        {screen.name === 'Video' && (
-          <VideoScreen 
-            onNavigate={handleNavigate}
-            onBack={() => setScreen({ name: 'Dashboard' })}
-          />
-        )}
         {screen.name === 'WebBrowser' && (
           <WebBrowserScreen 
             onBack={() => setScreen({ name: 'Dashboard' })}
@@ -185,14 +168,6 @@ const Main = () => {
           onNavigate={handleNavigate}
         />
       )}
-
-      {/* Global Video Player */}
-      <VideoPlayerModal 
-        visible={!!activeVideo}
-        video={activeVideo}
-        onClose={() => useVideoStore.getState().setActiveVideo(null)}
-        bottomOffset={bottomBarHeight}
-      />
 
       {/* Fullscreen Player Modal */}
       {isPlayerOpen && (

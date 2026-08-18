@@ -4,6 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, typography } from '../theme/theme';
 import { usePlayerStore } from '../store/usePlayerStore';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 export const AddToPlaylistModal = ({
   visible,
   track,
@@ -13,6 +15,7 @@ export const AddToPlaylistModal = ({
   track: any;
   onClose: () => void;
 }) => {
+  const insets = useSafeAreaInsets();
   const playlists = usePlayerStore(state => state.playlists);
   const addTrack = usePlayerStore(state => state.addTrack);
 
@@ -43,12 +46,12 @@ export const AddToPlaylistModal = ({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={styles.content}>
+        <View style={[styles.content, { paddingBottom: Math.max(insets.bottom + 20, 40) }]}>
           <View style={styles.header}>
             <Text style={styles.title}>Listeye Ekle</Text>
             <TouchableOpacity onPress={onClose}><Ionicons name="close" size={24} color={colors.textSecondary} /></TouchableOpacity>
           </View>
-          <ScrollView style={{ maxHeight: 300 }}>
+          <ScrollView style={{ minHeight: 150, maxHeight: 400 }}>
             {customPlaylists.map(p => (
               <TouchableOpacity key={p.id} style={styles.item} onPress={() => handleAdd(p.id)}>
                 <Ionicons name="list" size={24} color={colors.primary} />
