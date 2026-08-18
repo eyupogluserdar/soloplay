@@ -29,6 +29,10 @@ jobs:
         working-directory: ./soloplay
         run: npm install --legacy-peer-deps
 
+      - name: Generate Android folder (Prebuild)
+        working-directory: ./soloplay
+        run: npx expo prebuild --platform android
+
       - name: Build Android APK
         working-directory: ./soloplay/android
         run: chmod +x gradlew && ./gradlew assembleRelease --stacktrace
