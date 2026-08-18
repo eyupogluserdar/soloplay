@@ -27,11 +27,11 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./soloplay
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Build Android APK
         working-directory: ./soloplay/android
-        run: chmod +x gradlew && ./gradlew assembleRelease
+        run: chmod +x gradlew && ./gradlew assembleRelease --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
