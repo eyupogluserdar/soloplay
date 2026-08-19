@@ -389,12 +389,12 @@ export const YoutubeDownloaderScreen = ({ onBack, onOpenPlayer }: YoutubeDownloa
         </ScrollView>
       )}
 
-      <Modal visible={isPreviewVisible} transparent={true} animationType="slide" onRequestClose={() => setIsPreviewVisible(false)}>
+      <Modal visible={isPreviewVisible} transparent={true} animationType="slide" onRequestClose={() => { setIsPreviewVisible(false); setPreviewVideoId(null); }}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Ön İzleme</Text>
-              <TouchableOpacity onPress={() => setIsPreviewVisible(false)}>
+              <TouchableOpacity onPress={() => { setIsPreviewVisible(false); setPreviewVideoId(null); }}>
                 <Ionicons name="close" size={28} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
@@ -403,7 +403,7 @@ export const YoutubeDownloaderScreen = ({ onBack, onOpenPlayer }: YoutubeDownloa
                 <YoutubeIframe height={220} videoId={previewVideoId} play={true} />
               </View>
             )}
-            <TouchableOpacity style={styles.modalDownloadBtn} onPress={() => { setIsPreviewVisible(false); const item = results.find(r => r.id === previewVideoId); if (item) handleDownload(item); }}>
+            <TouchableOpacity style={styles.modalDownloadBtn} onPress={() => { setIsPreviewVisible(false); const item = results.find(r => r.id === previewVideoId); setPreviewVideoId(null); if (item) handleDownload(item); }}>
               <Ionicons name="download" size={20} color="white" style={{marginRight: 8}}/>
               <Text style={styles.modalDownloadText}>Bu Parçayı İndir</Text>
             </TouchableOpacity>

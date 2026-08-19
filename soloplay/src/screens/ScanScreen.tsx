@@ -185,8 +185,8 @@ export function ScanScreen({ onBack }: any) {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false, // Artık Native kırpma kullanmıyoruz!
-        quality: 1,
+        allowsEditing: false,
+        quality: 0.5,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -375,7 +375,7 @@ export function ScanScreen({ onBack }: any) {
     try {
       setIsProcessing(true);
       const photo = await cameraRef.current.takePictureAsync({
-        quality: 1,
+        quality: 0.5,
       });
       
       if (!photo || !photo.uri) {
@@ -461,7 +461,14 @@ export function ScanScreen({ onBack }: any) {
       {isScanning ? (
         <View style={styles.cameraContainer} onLayout={e => setContainerDim({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
           <View style={{ flex: 1, backgroundColor: '#111' }} {...panResponder.panHandlers}>
-            {galleryImageUri ? (
+            <CameraView
+              ref={cameraRef}
+              style={[StyleSheet.absoluteFillObject, galleryImageUri ? { opacity: 0 } : {}]}
+              facing="back"
+              pictureSize="1920x1080"
+              autofocus="on"
+            />
+            {galleryImageUri && (
               <Image 
                 source={{ uri: galleryImageUri }} 
                 style={[StyleSheet.absoluteFillObject, { 
@@ -472,14 +479,6 @@ export function ScanScreen({ onBack }: any) {
                   ]
                 }]} 
                 resizeMode="contain" 
-              />
-            ) : (
-              <CameraView
-                ref={cameraRef}
-                style={StyleSheet.absoluteFillObject}
-                facing="back"
-                pictureSize="1920x1080"
-                autofocus="on"
               />
             )}
 
