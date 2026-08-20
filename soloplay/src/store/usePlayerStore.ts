@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+﻿import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface PlaybackMemory {
@@ -21,6 +21,7 @@ export interface Playlist {
   id: string;
   name: string;
   tracks: Track[];
+  category?: string;
 }
 
 

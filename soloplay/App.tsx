@@ -8,6 +8,7 @@ import { PlaylistScreen } from './src/screens/PlaylistScreen';
 import { PlayerScreen } from './src/screens/PlayerScreen';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { MusicDashboardScreen } from './src/screens/MusicDashboardScreen';
+import { MediaCategoryScreen } from './src/screens/MediaCategoryScreen';
 import { WebBrowserScreen } from './src/screens/WebBrowserScreen';
 import { ScanScreen } from './src/screens/ScanScreen';
 import DocumentsScreen from './src/screens/DocumentsScreen';
@@ -22,6 +23,7 @@ import { checkAppVersion } from './src/utils/versionCheck';
 type ScreenState = 
   | { name: 'Dashboard' }
   | { name: 'MusicDashboard' }
+  | { name: 'MediaCategory'; categoryTitle: string }
   | { name: 'Playlists' }
   | { name: 'WebBrowser' }
   | { name: 'Scan' }
@@ -80,7 +82,7 @@ const Main = () => {
         return true;
       }
 
-      if (screen.name === 'Playlist' || screen.name === 'Playlists') {
+      if (screen.name === 'Playlist' || screen.name === 'Playlists' || screen.name === 'MediaCategory') {
         setScreen({ name: 'MusicDashboard' });
         return true;
       }
@@ -145,6 +147,13 @@ const Main = () => {
             onNavigateToPlaylist={(id, name) => setScreen({ name: 'Playlist', id, playlistName: name })}
             onOpenPlayer={() => setIsPlayerOpen(true)}
             onBack={() => setScreen({ name: 'Dashboard' })}
+            onNavigateToCategory={(title) => setScreen({ name: 'MediaCategory', categoryTitle: title })}
+          />
+        )}
+        {screen.name === 'MediaCategory' && (
+          <MediaCategoryScreen 
+            categoryTitle={screen.categoryTitle}
+            onBack={() => setScreen({ name: 'MusicDashboard' })}
           />
         )}
         {screen.name === 'Playlists' && (

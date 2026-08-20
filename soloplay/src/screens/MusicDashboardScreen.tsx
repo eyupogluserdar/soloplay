@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import { colors, typography } from '../theme/theme';
 import { Ionicons } from '@expo/vector-icons';
+import { getDummyContent } from '../utils/dummyData';
 import { useAudio } from '../context/AudioContext';
 import { usePlayerStore } from '../store/usePlayerStore';
 import type { Track, Playlist } from '../store/usePlayerStore';
@@ -22,9 +23,10 @@ interface DashboardProps {
   onNavigateToPlaylist: (id: string, name: string) => void;
   onOpenPlayer: (playlistId: string, playlistName: string) => void;
   onBack: () => void;
+  onNavigateToCategory?: (title: string) => void;
 }
 
-export const MusicDashboardScreen = ({ onNavigate, onNavigateToPlaylist, onOpenPlayer, onBack }: DashboardProps) => {
+export const MusicDashboardScreen = ({ onNavigate, onNavigateToPlaylist, onOpenPlayer, onBack, onNavigateToCategory }: DashboardProps) => {
   const insets = useSafeAreaInsets();
   const { currentPlaylistId: activePlaylistIdFromAudio, currentTrackName, playTrack } = useAudio();
   const playlists = usePlayerStore(state => state.playlists);
@@ -192,27 +194,7 @@ export const MusicDashboardScreen = ({ onNavigate, onNavigateToPlaylist, onOpenP
               <Text style={styles.logoTextSolo}>Medya</Text>
             </View>
             <View style={{ flex: 1 }} />
-            <View style={styles.headerActions}>
-              <TouchableOpacity onPress={() => setIsSearchActive(true)} style={styles.headerIconButton}>
-                <Ionicons name="search" size={24} color={colors.primary} />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.headerIconButton} 
-                onPress={() => {
-                  setPromptAction('createEmpty');
-                  setPromptVisible(true);
-                }}
-              >
-                <Ionicons name="folder-outline" size={24} color={colors.primary} />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.headerIconButton} 
-                onPress={handlePickFiles} 
-                disabled={isPicking}
-              >
-                {isPicking ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="add" size={28} color={colors.primary} />}
-              </TouchableOpacity>
-            </View>
+            
           </>
         ) : (
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.primary, borderRadius: 20, paddingHorizontal: 15, height: 40 }}>
@@ -320,186 +302,37 @@ export const MusicDashboardScreen = ({ onNavigate, onNavigateToPlaylist, onOpenP
           contentContainerStyle={{ paddingBottom: Math.max(120, insets.bottom + 90) }}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.section}>
-            {renderSectionHeader('Müziklerim')}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScrollContent} decelerationRate="fast" snapToInterval={CARD_WIDTH + 15}>
-              {[
-                { id: 'm1', title: 'Pop Mix 2026', sub: 'Harika bir başlangıç', icon: 'musical-notes', artwork: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&q=80' },
-                { id: 'm2', title: 'Akustik Dinleti', sub: 'Rahatlatıcı', icon: 'musical-notes', artwork: 'https://images.unsplash.com/photo-1460723237483-7a6dc9d0b212?w=500&q=80' },
-                { id: 'm3', title: 'Podcast: Teknoloji', sub: 'Geleceğe Bakış', icon: 'mic', artwork: 'https://images.unsplash.com/photo-1589903308904-1010c2294adc?w=500&q=80' },
-                { id: 'm4', title: 'Odaklanma', sub: 'Derin Çalışma', icon: 'headset', artwork: 'https://images.unsplash.com/photo-1558021212-51b6ecfa0db9?w=500&q=80' }
-              ].map((dummy, idx) => (
-                <TouchableOpacity key={dummy.id} style={styles.card} activeOpacity={1}>
-                  {dummy.artwork ? (
-                      <Image source={{ uri: dummy.artwork }} style={styles.cardImage} />
-                  ) : (
-                      <View style={[styles.cardImage, styles.placeholderImage, { backgroundColor: getDynamicColor(dummy.title) }]}>
-                          <Ionicons name={dummy.icon as any} size={32} color={colors.textSecondary} />
-                      </View>
-                  )}
-                  <Text style={styles.cardTitle} numberOfLines={1}>{dummy.title}</Text>
-                  <Text style={styles.cardSubtitle} numberOfLines={1}>{dummy.sub}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-
-          {/* YouTube İndirmelerim */}
-          {recentDownloads.length > 0 && (
-            <View style={styles.section}>
-              {renderSectionHeader('YouTube İndirmelerim', () => onNavigateToPlaylist(ytPlaylist!.id, ytPlaylist!.name))}
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false} 
-                contentContainerStyle={styles.horizontalScrollContent}
-                decelerationRate="fast"
-                snapToInterval={CARD_WIDTH + 15}
-              >
-                {recentDownloads.map((track, idx) => {
-                  const cardId = `dl_${track.uri}_${idx}`;
-                  return (
-                  <TouchableOpacity 
-                    key={cardId} 
-                    style={[styles.card, activeCardId === cardId && { zIndex: 10, elevation: 10 }]}
-                    onPress={() => handlePlayTrack(track, ytPlaylist!.id, ytPlaylist!.name)}
-                    onLongPress={() => setActiveCardId(cardId)}
-                    disabled={activeCardId === cardId}
-                  >
-                    {track.artwork ? (
-                      <Image source={{ uri: track.artwork }} style={styles.cardImage} />
-                    ) : (
-                      <View style={[styles.cardImage, styles.placeholderImage, { backgroundColor: getDynamicColor(track.name) }]}>
-                        <Ionicons name="musical-notes" size={32} color={colors.textSecondary} />
-                      </View>
-                    )}
-                    <CardOverlay
-                      visible={activeCardId === cardId}
-                      onClose={() => setActiveCardId(null)}
-                      options={[
-                        { icon: 'folder', color: '#1DD75F', onPress: () => { setSelectedTrackForAdd(track); setAddToPlaylistVisible(true); } },
-                        { icon: 'trash', color: '#ff4444', onPress: () => {
-                            Alert.alert('Emin misiniz?', `Bu parça "${ytPlaylist!.name}" listesinden silinecek.`, [
-                              { text: 'İptal', style: 'cancel' },
-                              { text: 'Sil', style: 'destructive', onPress: () => removeTrack(ytPlaylist!.id, track.uri) }
-                            ]);
-                        }}
-                      ]}
-                    />
-                    <Text style={styles.cardTitle} numberOfLines={1}>{track.name}</Text>
-                    <Text style={styles.cardSubtitle} numberOfLines={1}>{track.artist || 'Bilinmeyen'}</Text>
-                  </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
-          )}
-
-          {/* Güncel Dinledikleriniz */}
-          {recentPlayed.length > 0 && (
-            <View style={styles.section}>
-              {renderSectionHeader('Güncel Dinledikleriniz')}
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false} 
-                contentContainerStyle={styles.horizontalScrollContent}
-                decelerationRate="fast"
-                snapToInterval={CARD_WIDTH + 15}
-              >
-                {recentPlayed.map((item, idx) => {
-                  const cardId = `rp_${item.trackUri}_${idx}`;
-                  return (
-                  <TouchableOpacity 
-                    key={cardId} 
-                    style={[styles.card, activeCardId === cardId && { zIndex: 10, elevation: 10 }]}
-                    onPress={() => handlePlayMemory(item)}
-                    onLongPress={() => setActiveCardId(cardId)}
-                    disabled={activeCardId === cardId}
-                  >
-                    {item.artwork ? (
-                      <Image source={{ uri: item.artwork }} style={styles.cardImage} />
-                    ) : (
-                      <View style={[styles.cardImage, styles.placeholderImage, { backgroundColor: getDynamicColor(item.trackName) }]}>
-                        <Ionicons name="play-circle" size={32} color={colors.textSecondary} />
-                      </View>
-                    )}
-                    <CardOverlay
-                      visible={activeCardId === cardId}
-                      onClose={() => setActiveCardId(null)}
-                      options={[
-                        { icon: 'folder', color: '#1DD75F', onPress: () => { setSelectedTrackForAdd(item); setAddToPlaylistVisible(true); } },
-                        { icon: 'trash', color: '#ff4444', onPress: () => removeRecentTrack(item.trackUri) }
-                      ]}
-                    />
-                    <Text style={styles.cardTitle} numberOfLines={1}>{item.trackName}</Text>
-                    <Text style={styles.cardSubtitle} numberOfLines={1}>{item.playlistName}</Text>
-                  </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
-          )}
-
-
-          {otherPlaylists.map((playlist) => {
+                    {['Müziklerim', 'Radyo Dinle', 'TV İzle', 'Podcastler'].map((category) => {
+            const firstDummySection = getDummyContent(category)[0];
             return (
-              <View key={`sec_${playlist.id}`} style={styles.section}>
-                {renderSectionHeader(playlist.name, () => onNavigateToPlaylist(playlist.id, playlist.name))}
-                <ScrollView 
-                  horizontal 
-                  showsHorizontalScrollIndicator={false} 
-                  contentContainerStyle={styles.horizontalScrollContent}
-                  decelerationRate="fast"
-                  snapToInterval={CARD_WIDTH + 15}
+              <View key={category} style={styles.section}>
+                <TouchableOpacity 
+                  style={styles.sectionHeader}
+                  onPress={() => onNavigateToCategory && onNavigateToCategory(category)}
+                  activeOpacity={0.7}
                 >
-                  {/* Yükle Butonu Kutusu */}
-                  <TouchableOpacity 
-                    style={styles.card} 
-                    onPress={() => handlePickFilesForPlaylist(playlist.id)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={[styles.cardImage, styles.placeholderImage, { backgroundColor: '#1DD75F' }]}>
-                      <Ionicons name="add" size={40} color="#000" />
-                    </View>
-                    <Text style={styles.cardTitle} numberOfLines={1}>Yükle</Text>
-                    <Text style={styles.cardSubtitle} numberOfLines={1}>Telefondan Ekle</Text>
-                  </TouchableOpacity>
-
-                  {/* İçerikler */}
-                  {playlist.tracks?.slice().reverse().slice(0, 15).map((track, idx) => {
-                    const cardId = `pl_${playlist.id}_${track.uri}_${idx}`;
-                    return (
+                  <Text style={styles.sectionTitle}>{category}</Text>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScrollContent} decelerationRate="fast" snapToInterval={CARD_WIDTH + 15}>
+                  {firstDummySection.items.map((item: any, idx: number) => (
                     <TouchableOpacity 
-                      key={cardId} 
-                      style={[styles.card, activeCardId === cardId && { zIndex: 10, elevation: 10 }]}
-                      onPress={() => handlePlayTrack(track, playlist.id, playlist.name)}
-                      onLongPress={() => setActiveCardId(cardId)}
-                      disabled={activeCardId === cardId}
+                      key={`${category}_${idx}`} 
+                      style={styles.card} 
+                      activeOpacity={0.8}
+                      onPress={() => onNavigateToCategory && onNavigateToCategory(category)}
                     >
-                      {track.artwork ? (
-                        <Image source={{ uri: track.artwork }} style={styles.cardImage} />
+                      {item.artwork ? (
+                          <Image source={{ uri: item.artwork }} style={styles.cardImage} />
                       ) : (
-                        <View style={[styles.cardImage, styles.placeholderImage, { backgroundColor: getDynamicColor(track.name) }]}>
-                          <Ionicons name="musical-notes" size={32} color={colors.textSecondary} />
-                        </View>
+                          <View style={[styles.cardImage, styles.placeholderImage, { backgroundColor: getDynamicColor(item.title) }]}>
+                              <Ionicons name="play-circle-outline" size={32} color={colors.textSecondary} />
+                          </View>
                       )}
-                      <CardOverlay
-                        visible={activeCardId === cardId}
-                        onClose={() => setActiveCardId(null)}
-                        options={[
-                          { icon: 'folder', color: '#1DD75F', onPress: () => { setSelectedTrackForAdd(track); setAddToPlaylistVisible(true); } },
-                          { icon: 'trash', color: '#ff4444', onPress: () => {
-                              Alert.alert('Emin misiniz?', `Bu parça "${playlist.name}" listesinden silinecek.`, [
-                                { text: 'İptal', style: 'cancel' },
-                                { text: 'Sil', style: 'destructive', onPress: () => removeTrack(playlist.id, track.uri) }
-                              ]);
-                          }}
-                        ]}
-                      />
-                      <Text style={styles.cardTitle} numberOfLines={1}>{track.name}</Text>
-                      <Text style={styles.cardSubtitle} numberOfLines={1}>{track.artist || 'Bilinmeyen'}</Text>
+                      <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
+                      <Text style={styles.cardSubtitle} numberOfLines={1}>{item.sub}</Text>
                     </TouchableOpacity>
-                    );
-                  })}
+                  ))}
                 </ScrollView>
               </View>
             );
