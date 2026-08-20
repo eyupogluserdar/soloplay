@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Animated, Dimensions, PanResponder, Image } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as DocumentPicker from 'expo-document-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayerStore, Track } from '../store/usePlayerStore';
@@ -148,10 +149,38 @@ const SwipeableTrackItem = React.memo(({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={typography.header} numberOfLines={1}>{playlistName}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+          <TouchableOpacity onPress={onBack} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[typography.header, { flex: 1 }]} numberOfLines={1}>{playlistName}</Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+          <TouchableOpacity 
+            onPress={async () => {
+              try {
+                const result = await DocumentPicker.getDocumentAsync({
+                  type: 'audio/*',
+                  multiple: true,
+                  copyToCacheDirectory: true,
+                });
+                if (!result.canceled && result.assets && result.assets.length > 0) {
+                  result.assets.forEach(asset => {
+                    usePlayerStore.getState().addTrack(playlistId, {
+                      uri: asset.uri,
+                      name: asset.name || 'Bilinmeyen Parça'
+                    });
+                  });
+                  alert(`${result.assets.length} parça eklendi.`);
+                }
+              } catch (e) {
+                console.log(e);
+              }
+            }}
+          >
+            <Ionicons name="add" size={28} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {memory && currentPlaylistId !== playlistId && (

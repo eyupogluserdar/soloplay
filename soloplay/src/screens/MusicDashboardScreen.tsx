@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions, Alert, ActivityIndicator, Pressable } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions, Alert, ActivityIndicator, Pressable, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import { colors, typography } from '../theme/theme';
@@ -43,6 +43,32 @@ export const MusicDashboardScreen = ({ onNavigate, onNavigateToPlaylist, onOpenP
 
   // Overlay Menu State
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
+
+  const addTrack = usePlayerStore(state => state.addTrack);
+
+  const handlePickFilesForPlaylist = async (playlistId: string) => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'audio/*',
+        multiple: true,
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const tracks = result.assets.map(asset => ({
+          uri: asset.uri,
+          name: asset.name || 'Bilinmeyen Parça'
+        }));
+        
+        tracks.forEach(track => {
+          addTrack(playlistId, track as any);
+        });
+        alert(`${tracks.length} parça eklendi.`);
+      }
+    } catch (err) {
+      console.log('User cancelled or error:', err);
+    }
+  };
 
   const handlePickFiles = async () => {
     setIsPicking(true);
@@ -151,153 +177,273 @@ export const MusicDashboardScreen = ({ onNavigate, onNavigateToPlaylist, onOpenP
     </TouchableOpacity>
   );
 
+  const [isSearchActive, setIsSearchActive] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
-        <TouchableOpacity onPress={onBack} style={{ padding: 10, marginLeft: -10, marginRight: 10 }}>
-          <Ionicons name="chevron-back" size={28} color={colors.text} />
-        </TouchableOpacity>
-        <View style={styles.logoContainer}>
-          <Text style={styles.logoTextSolo}>Müziklerim</Text>
-        </View>
-        <View style={{ flex: 1 }} />
-        <View style={styles.headerActions}>
-          <TouchableOpacity 
-            style={styles.headerIconButton} 
-            onPress={promptManualRestore}
-          >
-            <Ionicons name="sync-outline" size={24} color={colors.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.headerIconButton} 
-            onPress={() => onNavigate('YoutubeDownloader')}
-          >
-            <Ionicons name="search" size={24} color={colors.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.headerIconButton} 
-            onPress={handlePickFiles} 
-            disabled={isPicking}
-          >
-            {isPicking ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="add" size={28} color={colors.primary} />}
-          </TouchableOpacity>
-        </View>
+        {!isSearchActive ? (
+          <>
+            <TouchableOpacity onPress={onBack} style={{ padding: 10, marginLeft: -10, marginRight: 10 }}>
+              <Ionicons name="chevron-back" size={28} color={colors.text} />
+            </TouchableOpacity>
+            <View style={styles.logoContainer}>
+              <Text style={styles.logoTextSolo}>Medya</Text>
+            </View>
+            <View style={{ flex: 1 }} />
+            <View style={styles.headerActions}>
+              <TouchableOpacity onPress={() => setIsSearchActive(true)} style={styles.headerIconButton}>
+                <Ionicons name="search" size={24} color={colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.headerIconButton} 
+                onPress={() => {
+                  setPromptAction('createEmpty');
+                  setPromptVisible(true);
+                }}
+              >
+                <Ionicons name="folder-outline" size={24} color={colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.headerIconButton} 
+                onPress={handlePickFiles} 
+                disabled={isPicking}
+              >
+                {isPicking ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="add" size={28} color={colors.primary} />}
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : (
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.primary, borderRadius: 20, paddingHorizontal: 15, height: 40 }}>
+            <Ionicons name="search" size={20} color={colors.primary} />
+            <TextInput
+              style={{ flex: 1, color: colors.text, marginLeft: 10 }}
+              placeholder="Ara..."
+              placeholderTextColor={colors.textSecondary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoFocus
+            />
+            <TouchableOpacity onPress={() => { setIsSearchActive(false); setSearchQuery(''); }}>
+              <Ionicons name="close" size={20} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
-      <ScrollView 
-        contentContainerStyle={{ paddingBottom: Math.max(120, insets.bottom + 90) }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* YouTube İndirmelerim */}
-        {recentDownloads.length > 0 && (
-          <View style={styles.section}>
-            {renderSectionHeader('YouTube İndirmelerim', () => onNavigateToPlaylist(ytPlaylist!.id, ytPlaylist!.name))}
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false} 
-              contentContainerStyle={styles.horizontalScrollContent}
-              decelerationRate="fast"
-              snapToInterval={CARD_WIDTH + 15}
-            >
-              {recentDownloads.map((track, idx) => {
-                const cardId = `dl_${track.uri}_${idx}`;
-                return (
-                <TouchableOpacity 
-                  key={cardId} 
-                  style={[styles.card, activeCardId === cardId && { zIndex: 10, elevation: 10 }]}
-                  onPress={() => handlePlayTrack(track, ytPlaylist!.id, ytPlaylist!.name)}
-                  onLongPress={() => setActiveCardId(cardId)}
-                  disabled={activeCardId === cardId}
-                >
-                  {track.artwork ? (
-                    <Image source={{ uri: track.artwork }} style={styles.cardImage} />
-                  ) : (
-                    <View style={[styles.cardImage, styles.placeholderImage, { backgroundColor: getDynamicColor(track.name) }]}>
-                      <Ionicons name="musical-notes" size={32} color={colors.textSecondary} />
-                    </View>
-                  )}
-                  <CardOverlay
-                    visible={activeCardId === cardId}
-                    onClose={() => setActiveCardId(null)}
-                    options={[
-                      { icon: 'folder', color: '#1DD75F', onPress: () => { setSelectedTrackForAdd(track); setAddToPlaylistVisible(true); } },
-                      { icon: 'trash', color: '#ff4444', onPress: () => {
-                          Alert.alert('Emin misiniz?', `Bu parça "${ytPlaylist!.name}" listesinden silinecek.`, [
-                            { text: 'İptal', style: 'cancel' },
-                            { text: 'Sil', style: 'destructive', onPress: () => removeTrack(ytPlaylist!.id, track.uri) }
-                          ]);
-                      }}
-                    ]}
-                  />
-                  <Text style={styles.cardTitle} numberOfLines={1}>{track.name}</Text>
-                  <Text style={styles.cardSubtitle} numberOfLines={1}>{track.artist || 'Bilinmeyen'}</Text>
-                </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-        )}
+      {isSearchActive && searchQuery.trim().length > 0 ? (
+        <ScrollView 
+          contentContainerStyle={{ paddingBottom: Math.max(120, insets.bottom + 90), paddingTop: 10 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {(() => {
+            const q = searchQuery.toLowerCase();
+            
+            const matchedPlaylists = playlists.filter(p => p.name && p.name.toLowerCase().includes(q)).map(p => ({ type: 'playlist', data: p }));
 
-        {/* Güncel Dinledikleriniz */}
-        {recentPlayed.length > 0 && (
-          <View style={styles.section}>
-            {renderSectionHeader('Güncel Dinledikleriniz')}
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false} 
-              contentContainerStyle={styles.horizontalScrollContent}
-              decelerationRate="fast"
-              snapToInterval={CARD_WIDTH + 15}
-            >
-              {recentPlayed.map((item, idx) => {
-                const cardId = `rp_${item.trackUri}_${idx}`;
-                return (
-                <TouchableOpacity 
-                  key={cardId} 
-                  style={[styles.card, activeCardId === cardId && { zIndex: 10, elevation: 10 }]}
-                  onPress={() => handlePlayMemory(item)}
-                  onLongPress={() => setActiveCardId(cardId)}
-                  disabled={activeCardId === cardId}
-                >
-                  {item.artwork ? (
-                    <Image source={{ uri: item.artwork }} style={styles.cardImage} />
-                  ) : (
-                    <View style={[styles.cardImage, styles.placeholderImage, { backgroundColor: getDynamicColor(item.trackName) }]}>
-                      <Ionicons name="play-circle" size={32} color={colors.textSecondary} />
-                    </View>
-                  )}
-                  <CardOverlay
-                    visible={activeCardId === cardId}
-                    onClose={() => setActiveCardId(null)}
-                    options={[
-                      { icon: 'folder', color: '#1DD75F', onPress: () => { setSelectedTrackForAdd(item); setAddToPlaylistVisible(true); } },
-                      { icon: 'trash', color: '#ff4444', onPress: () => removeRecentTrack(item.trackUri) }
-                    ]}
-                  />
-                  <Text style={styles.cardTitle} numberOfLines={1}>{item.trackName}</Text>
-                  <Text style={styles.cardSubtitle} numberOfLines={1}>{item.playlistName}</Text>
-                </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-        )}
+            const matchedTracks: any[] = [];
+            playlists.forEach(p => {
+              p.tracks?.forEach(t => {
+                const trackName = t.name ? t.name.toLowerCase() : '';
+                const trackArtist = t.artist ? t.artist.toLowerCase() : '';
+                if (trackName.includes(q) || trackArtist.includes(q)) {
+                  if (!matchedTracks.some(mt => mt.data.uri === t.uri)) {
+                    matchedTracks.push({ type: 'track', data: t, playlistId: p.id, playlistName: p.name });
+                  }
+                }
+              });
+            });
 
+            const results = [...matchedPlaylists, ...matchedTracks];
 
-        {otherPlaylists.map((playlist) => {
-          const isEmpty = !playlist.tracks || playlist.tracks.length === 0;
-          
-          return (
-            <View key={`sec_${playlist.id}`} style={styles.section}>
-              {renderSectionHeader(playlist.name, () => onNavigateToPlaylist(playlist.id, playlist.name))}
-              
-              {isEmpty ? (
-                <View style={{ paddingHorizontal: 20, paddingVertical: 10 }}>
-                  <Text style={{ color: colors.textSecondary, fontSize: 13, fontStyle: 'italic' }}>
-                    Bu klasör şu an boş. Şarkı eklemek için parçaların üzerine basılı tutun.
-                  </Text>
+            if (results.length === 0) {
+              return (
+                <View style={{ padding: 40, alignItems: 'center' }}>
+                  <Ionicons name="search" size={48} color={colors.textSecondary} style={{ marginBottom: 15 }} />
+                  <Text style={styles.emptyText}>"{searchQuery}" için sonuç bulunamadı.</Text>
                 </View>
-              ) : (
+              );
+            }
+
+            return results.map((item, idx) => {
+              if (item.type === 'playlist') {
+                return (
+                  <TouchableOpacity 
+                    key={`sp_${idx}`} 
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' }}
+                    onPress={() => {
+                      setIsSearchActive(false);
+                      onNavigateToPlaylist(item.data.id, item.data.name);
+                    }}
+                  >
+                    <View style={{ width: 50, height: 50, borderRadius: 8, backgroundColor: getDynamicColor(item.data.name || 'default'), justifyContent: 'center', alignItems: 'center' }}>
+                      <Ionicons name="folder" size={24} color={colors.textSecondary} />
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 15 }}>
+                      <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', marginBottom: 4 }} numberOfLines={1}>{item.data.name}</Text>
+                      <Text style={{ color: colors.textSecondary, fontSize: 13 }} numberOfLines={1}>Liste • {item.data.tracks?.length || 0} Medya</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                );
+              } else {
+                return (
+                  <TouchableOpacity 
+                    key={`st_${idx}`} 
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' }}
+                    onPress={() => {
+                      handlePlayTrack(item.data, item.playlistId, item.playlistName);
+                    }}
+                  >
+                  {item.data.artwork ? (
+                    <Image source={{ uri: item.data.artwork }} style={{ width: 50, height: 50, borderRadius: 8, backgroundColor: colors.surface }} />
+                  ) : (
+                    <View style={{ width: 50, height: 50, borderRadius: 8, backgroundColor: getDynamicColor(item.data.name || 'default'), justifyContent: 'center', alignItems: 'center' }}>
+                      <Ionicons name="musical-notes" size={24} color={colors.textSecondary} />
+                    </View>
+                  )}
+                  <View style={{ flex: 1, marginLeft: 15 }}>
+                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', marginBottom: 4 }} numberOfLines={1}>{item.data.name}</Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: 13 }} numberOfLines={1}>{item.playlistName} • {item.data.artist || 'Müzik'}</Text>
+                  </View>
+                  <Ionicons name="play-circle" size={28} color={colors.primary} />
+                </TouchableOpacity>
+              );
+            }
+            });
+          })()}
+        </ScrollView>
+      ) : (
+        <ScrollView 
+          contentContainerStyle={{ paddingBottom: Math.max(120, insets.bottom + 90) }}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.section}>
+            {renderSectionHeader('Müziklerim')}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScrollContent} decelerationRate="fast" snapToInterval={CARD_WIDTH + 15}>
+              {[
+                { id: 'm1', title: 'Pop Mix 2026', sub: 'Harika bir başlangıç', icon: 'musical-notes', artwork: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&q=80' },
+                { id: 'm2', title: 'Akustik Dinleti', sub: 'Rahatlatıcı', icon: 'musical-notes', artwork: 'https://images.unsplash.com/photo-1460723237483-7a6dc9d0b212?w=500&q=80' },
+                { id: 'm3', title: 'Podcast: Teknoloji', sub: 'Geleceğe Bakış', icon: 'mic', artwork: 'https://images.unsplash.com/photo-1589903308904-1010c2294adc?w=500&q=80' },
+                { id: 'm4', title: 'Odaklanma', sub: 'Derin Çalışma', icon: 'headset', artwork: 'https://images.unsplash.com/photo-1558021212-51b6ecfa0db9?w=500&q=80' }
+              ].map((dummy, idx) => (
+                <TouchableOpacity key={dummy.id} style={styles.card} activeOpacity={1}>
+                  {dummy.artwork ? (
+                      <Image source={{ uri: dummy.artwork }} style={styles.cardImage} />
+                  ) : (
+                      <View style={[styles.cardImage, styles.placeholderImage, { backgroundColor: getDynamicColor(dummy.title) }]}>
+                          <Ionicons name={dummy.icon as any} size={32} color={colors.textSecondary} />
+                      </View>
+                  )}
+                  <Text style={styles.cardTitle} numberOfLines={1}>{dummy.title}</Text>
+                  <Text style={styles.cardSubtitle} numberOfLines={1}>{dummy.sub}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* YouTube İndirmelerim */}
+          {recentDownloads.length > 0 && (
+            <View style={styles.section}>
+              {renderSectionHeader('YouTube İndirmelerim', () => onNavigateToPlaylist(ytPlaylist!.id, ytPlaylist!.name))}
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false} 
+                contentContainerStyle={styles.horizontalScrollContent}
+                decelerationRate="fast"
+                snapToInterval={CARD_WIDTH + 15}
+              >
+                {recentDownloads.map((track, idx) => {
+                  const cardId = `dl_${track.uri}_${idx}`;
+                  return (
+                  <TouchableOpacity 
+                    key={cardId} 
+                    style={[styles.card, activeCardId === cardId && { zIndex: 10, elevation: 10 }]}
+                    onPress={() => handlePlayTrack(track, ytPlaylist!.id, ytPlaylist!.name)}
+                    onLongPress={() => setActiveCardId(cardId)}
+                    disabled={activeCardId === cardId}
+                  >
+                    {track.artwork ? (
+                      <Image source={{ uri: track.artwork }} style={styles.cardImage} />
+                    ) : (
+                      <View style={[styles.cardImage, styles.placeholderImage, { backgroundColor: getDynamicColor(track.name) }]}>
+                        <Ionicons name="musical-notes" size={32} color={colors.textSecondary} />
+                      </View>
+                    )}
+                    <CardOverlay
+                      visible={activeCardId === cardId}
+                      onClose={() => setActiveCardId(null)}
+                      options={[
+                        { icon: 'folder', color: '#1DD75F', onPress: () => { setSelectedTrackForAdd(track); setAddToPlaylistVisible(true); } },
+                        { icon: 'trash', color: '#ff4444', onPress: () => {
+                            Alert.alert('Emin misiniz?', `Bu parça "${ytPlaylist!.name}" listesinden silinecek.`, [
+                              { text: 'İptal', style: 'cancel' },
+                              { text: 'Sil', style: 'destructive', onPress: () => removeTrack(ytPlaylist!.id, track.uri) }
+                            ]);
+                        }}
+                      ]}
+                    />
+                    <Text style={styles.cardTitle} numberOfLines={1}>{track.name}</Text>
+                    <Text style={styles.cardSubtitle} numberOfLines={1}>{track.artist || 'Bilinmeyen'}</Text>
+                  </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Güncel Dinledikleriniz */}
+          {recentPlayed.length > 0 && (
+            <View style={styles.section}>
+              {renderSectionHeader('Güncel Dinledikleriniz')}
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false} 
+                contentContainerStyle={styles.horizontalScrollContent}
+                decelerationRate="fast"
+                snapToInterval={CARD_WIDTH + 15}
+              >
+                {recentPlayed.map((item, idx) => {
+                  const cardId = `rp_${item.trackUri}_${idx}`;
+                  return (
+                  <TouchableOpacity 
+                    key={cardId} 
+                    style={[styles.card, activeCardId === cardId && { zIndex: 10, elevation: 10 }]}
+                    onPress={() => handlePlayMemory(item)}
+                    onLongPress={() => setActiveCardId(cardId)}
+                    disabled={activeCardId === cardId}
+                  >
+                    {item.artwork ? (
+                      <Image source={{ uri: item.artwork }} style={styles.cardImage} />
+                    ) : (
+                      <View style={[styles.cardImage, styles.placeholderImage, { backgroundColor: getDynamicColor(item.trackName) }]}>
+                        <Ionicons name="play-circle" size={32} color={colors.textSecondary} />
+                      </View>
+                    )}
+                    <CardOverlay
+                      visible={activeCardId === cardId}
+                      onClose={() => setActiveCardId(null)}
+                      options={[
+                        { icon: 'folder', color: '#1DD75F', onPress: () => { setSelectedTrackForAdd(item); setAddToPlaylistVisible(true); } },
+                        { icon: 'trash', color: '#ff4444', onPress: () => removeRecentTrack(item.trackUri) }
+                      ]}
+                    />
+                    <Text style={styles.cardTitle} numberOfLines={1}>{item.trackName}</Text>
+                    <Text style={styles.cardSubtitle} numberOfLines={1}>{item.playlistName}</Text>
+                  </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+
+
+          {otherPlaylists.map((playlist) => {
+            return (
+              <View key={`sec_${playlist.id}`} style={styles.section}>
+                {renderSectionHeader(playlist.name, () => onNavigateToPlaylist(playlist.id, playlist.name))}
                 <ScrollView 
                   horizontal 
                   showsHorizontalScrollIndicator={false} 
@@ -305,7 +451,21 @@ export const MusicDashboardScreen = ({ onNavigate, onNavigateToPlaylist, onOpenP
                   decelerationRate="fast"
                   snapToInterval={CARD_WIDTH + 15}
                 >
-                  {playlist.tracks.slice().reverse().slice(0, 15).map((track, idx) => {
+                  {/* Yükle Butonu Kutusu */}
+                  <TouchableOpacity 
+                    style={styles.card} 
+                    onPress={() => handlePickFilesForPlaylist(playlist.id)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[styles.cardImage, styles.placeholderImage, { backgroundColor: '#1DD75F' }]}>
+                      <Ionicons name="add" size={40} color="#000" />
+                    </View>
+                    <Text style={styles.cardTitle} numberOfLines={1}>Yükle</Text>
+                    <Text style={styles.cardSubtitle} numberOfLines={1}>Telefondan Ekle</Text>
+                  </TouchableOpacity>
+
+                  {/* İçerikler */}
+                  {playlist.tracks?.slice().reverse().slice(0, 15).map((track, idx) => {
                     const cardId = `pl_${playlist.id}_${track.uri}_${idx}`;
                     return (
                     <TouchableOpacity 
@@ -341,11 +501,11 @@ export const MusicDashboardScreen = ({ onNavigate, onNavigateToPlaylist, onOpenP
                     );
                   })}
                 </ScrollView>
-              )}
-            </View>
-          );
-        })}
-      </ScrollView>
+              </View>
+            );
+          })}
+        </ScrollView>
+      )}
 
       <PromptModal
         visible={promptVisible}

@@ -14,7 +14,7 @@ const tabs: Tab[] = [
   { id: 'Dashboard', title: 'Ana Sayfa', icon: 'home' },
   { id: 'Documents', title: 'OCR', icon: 'document-text' },
   { id: 'Scan', title: 'Tara', icon: 'scan' },
-  { id: 'MusicDashboard', title: 'Müzik', icon: 'musical-notes' },
+  { id: 'MusicDashboard', title: 'Medya', icon: 'musical-notes' },
 ];
 
 export const BottomTabBar = ({ 

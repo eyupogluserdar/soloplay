@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { View, StyleSheet, PermissionsAndroid, Platform } from 'react-native';
+import { View, StyleSheet, PermissionsAndroid, Platform, BackHandler, ToastAndroid } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AudioProvider, useAudio } from './src/context/AudioContext';
 import { PlaylistsScreen } from './src/screens/PlaylistsScreen';
@@ -8,7 +8,6 @@ import { PlaylistScreen } from './src/screens/PlaylistScreen';
 import { PlayerScreen } from './src/screens/PlayerScreen';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { MusicDashboardScreen } from './src/screens/MusicDashboardScreen';
-import { YoutubeDownloaderScreen } from './src/screens/YoutubeDownloaderScreen';
 import { WebBrowserScreen } from './src/screens/WebBrowserScreen';
 import { ScanScreen } from './src/screens/ScanScreen';
 import DocumentsScreen from './src/screens/DocumentsScreen';
@@ -24,8 +23,6 @@ type ScreenState =
   | { name: 'Dashboard' }
   | { name: 'MusicDashboard' }
   | { name: 'Playlists' }
-  | { name: 'YoutubeDownloader' }
-  | { name: 'YoutubeVideoDownloader' }
   | { name: 'WebBrowser' }
   | { name: 'Scan' }
   | { name: 'Video' }
@@ -74,6 +71,43 @@ const Main = () => {
     }
   }, []);
 
+  const [backPressCount, setBackPressCount] = useState(0);
+
+  useEffect(() => {
+    const handleBackPress = () => {
+      if (isPlayerOpen) {
+        setIsPlayerOpen(false);
+        return true;
+      }
+
+      if (screen.name === 'Playlist' || screen.name === 'Playlists') {
+        setScreen({ name: 'MusicDashboard' });
+        return true;
+      }
+
+      if (screen.name === 'MusicDashboard' || screen.name === 'Scan' || screen.name === 'Documents' || screen.name === 'WebBrowser' || screen.name === 'Video') {
+        setScreen({ name: 'Dashboard' });
+        return true;
+      }
+
+      if (screen.name === 'Dashboard') {
+        if (backPressCount === 0) {
+          setBackPressCount(1);
+          ToastAndroid.show('Çıkmak için tekrar basın', ToastAndroid.SHORT);
+          setTimeout(() => setBackPressCount(0), 2000);
+          return true;
+        } else {
+          return false; // let Android exit the app
+        }
+      }
+
+      return false;
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+    return () => backHandler.remove();
+  }, [screen, isPlayerOpen, backPressCount]);
+
   const handleSelectPlaylist = (id: string, name: string) => {
     setScreen({ name: 'Playlist', id, playlistName: name });
   };
@@ -118,12 +152,6 @@ const Main = () => {
             onSelectPlaylist={handleSelectPlaylist} 
             onOpenPlayer={() => setIsPlayerOpen(true)}
             onBack={() => setScreen({ name: 'MusicDashboard' })}
-          />
-        )}
-        {screen.name === 'YoutubeDownloader' && (
-          <YoutubeDownloaderScreen 
-            onOpenPlayer={() => setIsPlayerOpen(true)}
-            onBack={() => setScreen({ name: 'Dashboard' })}
           />
         )}
         {screen.name === 'WebBrowser' && (
