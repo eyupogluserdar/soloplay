@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Animated, Dimensions, PanResponder, Image } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as DocumentPicker from 'expo-document-picker';
+import { SearchResults } from '../components/SearchResults';
+import { TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayerStore, Track } from '../store/usePlayerStore';
@@ -25,6 +27,8 @@ export const PlaylistScreen = ({
 }) => {
   const insets = useSafeAreaInsets();
   const { currentPlaylistId, isPlaying, currentTrackName, pause, resume } = useAudio();
+  const [isSearchActive, setIsSearchActive] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState('');
   const memory = usePlayerStore(state => state.memory[playlistId]);
   const playlist = usePlayerStore(state => state.playlists.find(p => p.id === playlistId));
   
@@ -200,8 +204,15 @@ const SwipeableTrackItem = React.memo(({
 
       {tracks.length === 0 ? (
         <Text style={styles.emptyText}>Bu çalma listesinde parça bulunamadı.</Text>
+      ) : isSearchActive && searchQuery.trim().length > 0 ? (
+        <SearchResults 
+          searchQuery={searchQuery}
+          insets={insets}
+          onNavigateToPlaylist={() => {}}
+          onClose={() => setIsSearchActive(false)}
+        />
       ) : (
-        <FlatList
+      <FlatList
           data={tracks}
           keyExtractor={item => item.uri}
           initialNumToRender={10}

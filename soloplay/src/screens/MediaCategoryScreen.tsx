@@ -10,6 +10,8 @@ import { CardOverlay } from '../components/CardOverlay';
 import { AddToPlaylistModal } from '../components/AddToPlaylistModal';
 import { PromptModal } from '../components/PromptModal';
 import * as DocumentPicker from 'expo-document-picker';
+import { SearchResults } from '../components/SearchResults';
+import { TextInput } from 'react-native';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.38;
@@ -45,6 +47,8 @@ export const MediaCategoryScreen = ({ categoryTitle, onBack, onNavigateToPlaylis
   const [selectedTrackForAdd, setSelectedTrackForAdd] = useState<any>(null);
 
   const [isPicking, setIsPicking] = useState(false);
+  const [isSearchActive, setIsSearchActive] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [promptVisible, setPromptVisible] = useState(false);
   const [promptAction, setPromptAction] = useState<'createEmpty' | 'createWithFiles'>('createEmpty');
   const [pendingFiles, setPendingFiles] = useState<any[]>([]);
@@ -248,25 +252,53 @@ export const MediaCategoryScreen = ({ categoryTitle, onBack, onNavigateToPlaylis
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
-        <TouchableOpacity onPress={onBack} style={{ padding: 10, marginLeft: -10, marginRight: 10 }}>
-          <Ionicons name="chevron-back" size={28} color={colors.text} />
-        </TouchableOpacity>
-        <View style={styles.logoContainer}>
-          <Text style={styles.logoTextSolo}>{categoryTitle}</Text>
-        </View>
-        <View style={{ flex: 1 }} />
-        {true && (
-          <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.headerIconButton} onPress={() => { setPromptAction('createEmpty'); setPromptVisible(true); }}>
-              <Ionicons name="folder-outline" size={24} color={colors.primary} />
+        {!isSearchActive ? (
+          <>
+            <TouchableOpacity onPress={onBack} style={{ padding: 10, marginLeft: -10, marginRight: 10 }}>
+              <Ionicons name="chevron-back" size={28} color={colors.text} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.headerIconButton} onPress={handlePickFiles} disabled={isPicking}>
-              {isPicking ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="add" size={28} color={colors.primary} />}
+            <View style={styles.logoContainer}>
+              <Text style={styles.logoTextSolo}>{categoryTitle}</Text>
+            </View>
+            <View style={{ flex: 1 }} />
+            <View style={styles.headerActions}>
+              <TouchableOpacity style={styles.headerIconButton} onPress={() => setIsSearchActive(true)}>
+                <Ionicons name="search" size={24} color={colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.headerIconButton} onPress={() => { setPromptAction('createEmpty'); setPromptVisible(true); }}>
+                <Ionicons name="folder-outline" size={24} color={colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.headerIconButton} onPress={handlePickFiles} disabled={isPicking}>
+                {isPicking ? <ActivityIndicator size="small" color={colors.primary} /> : <Ionicons name="add" size={28} color={colors.primary} />}
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : (
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.primary, borderRadius: 20, paddingHorizontal: 15, height: 40 }}>
+            <Ionicons name="search" size={20} color={colors.primary} />
+            <TextInput
+              style={{ flex: 1, color: colors.text, marginLeft: 10 }}
+              placeholder="Ara..."
+              placeholderTextColor={colors.textSecondary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoFocus
+            />
+            <TouchableOpacity onPress={() => { setIsSearchActive(false); setSearchQuery(''); }}>
+              <Ionicons name="close" size={20} color={colors.primary} />
             </TouchableOpacity>
           </View>
         )}
       </View>
 
+      {isSearchActive && searchQuery.trim().length > 0 ? (
+        <SearchResults 
+          searchQuery={searchQuery}
+          insets={insets}
+          onNavigateToPlaylist={onNavigateToPlaylist || (() => {})}
+          onClose={() => setIsSearchActive(false)}
+        />
+      ) : (
       <ScrollView 
         contentContainerStyle={{ paddingBottom: Math.max(120, insets.bottom + 90) }}
         showsVerticalScrollIndicator={false}
@@ -444,6 +476,8 @@ export const MediaCategoryScreen = ({ categoryTitle, onBack, onNavigateToPlaylis
           </>
         )}
       </ScrollView>
+
+      )}
 
       <PromptModal
         visible={promptVisible}
