@@ -5,6 +5,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { colors, typography } from '../theme/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { getDummyContent } from '../utils/dummyData';
+import { SearchResults } from '../components/SearchResults';
 import { useAudio } from '../context/AudioContext';
 import { usePlayerStore } from '../store/usePlayerStore';
 import type { Track, Playlist } from '../store/usePlayerStore';
@@ -195,7 +196,7 @@ export const MusicDashboardScreen = ({ onNavigate, onNavigateToPlaylist, onOpenP
             </View>
             <View style={{ flex: 1 }} />
             
-          </>
+          <TouchableOpacity style={styles.headerIconButton} onPress={() => setIsSearchActive(true)}><Ionicons name="search" size={24} color={colors.primary} /></TouchableOpacity></>
         ) : (
           <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.primary, borderRadius: 20, paddingHorizontal: 15, height: 40 }}>
             <Ionicons name="search" size={20} color={colors.primary} />
@@ -215,88 +216,12 @@ export const MusicDashboardScreen = ({ onNavigate, onNavigateToPlaylist, onOpenP
       </View>
 
       {isSearchActive && searchQuery.trim().length > 0 ? (
-        <ScrollView 
-          contentContainerStyle={{ paddingBottom: Math.max(120, insets.bottom + 90), paddingTop: 10 }}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {(() => {
-            const q = searchQuery.toLowerCase();
-            
-            const matchedPlaylists = playlists.filter(p => p.name && p.name.toLowerCase().includes(q)).map(p => ({ type: 'playlist', data: p }));
-
-            const matchedTracks: any[] = [];
-            playlists.forEach(p => {
-              p.tracks?.forEach(t => {
-                const trackName = t.name ? t.name.toLowerCase() : '';
-                const trackArtist = t.artist ? t.artist.toLowerCase() : '';
-                if (trackName.includes(q) || trackArtist.includes(q)) {
-                  if (!matchedTracks.some(mt => mt.data.uri === t.uri)) {
-                    matchedTracks.push({ type: 'track', data: t, playlistId: p.id, playlistName: p.name });
-                  }
-                }
-              });
-            });
-
-            const results = [...matchedPlaylists, ...matchedTracks];
-
-            if (results.length === 0) {
-              return (
-                <View style={{ padding: 40, alignItems: 'center' }}>
-                  <Ionicons name="search" size={48} color={colors.textSecondary} style={{ marginBottom: 15 }} />
-                  <Text style={styles.emptyText}>"{searchQuery}" için sonuç bulunamadı.</Text>
-                </View>
-              );
-            }
-
-            return results.map((item, idx) => {
-              if (item.type === 'playlist') {
-                return (
-                  <TouchableOpacity 
-                    key={`sp_${idx}`} 
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' }}
-                    onPress={() => {
-                      setIsSearchActive(false);
-                      onNavigateToPlaylist(item.data.id, item.data.name);
-                    }}
-                  >
-                    <View style={{ width: 50, height: 50, borderRadius: 8, backgroundColor: getDynamicColor(item.data.name || 'default'), justifyContent: 'center', alignItems: 'center' }}>
-                      <Ionicons name="folder" size={24} color={colors.textSecondary} />
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 15 }}>
-                      <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', marginBottom: 4 }} numberOfLines={1}>{item.data.name}</Text>
-                      <Text style={{ color: colors.textSecondary, fontSize: 13 }} numberOfLines={1}>Liste • {item.data.tracks?.length || 0} Medya</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                );
-              } else {
-                return (
-                  <TouchableOpacity 
-                    key={`st_${idx}`} 
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' }}
-                    onPress={() => {
-                      handlePlayTrack(item.data, item.playlistId, item.playlistName);
-                    }}
-                  >
-                  {item.data.artwork ? (
-                    <Image source={{ uri: item.data.artwork }} style={{ width: 50, height: 50, borderRadius: 8, backgroundColor: colors.surface }} />
-                  ) : (
-                    <View style={{ width: 50, height: 50, borderRadius: 8, backgroundColor: getDynamicColor(item.data.name || 'default'), justifyContent: 'center', alignItems: 'center' }}>
-                      <Ionicons name="musical-notes" size={24} color={colors.textSecondary} />
-                    </View>
-                  )}
-                  <View style={{ flex: 1, marginLeft: 15 }}>
-                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600', marginBottom: 4 }} numberOfLines={1}>{item.data.name}</Text>
-                    <Text style={{ color: colors.textSecondary, fontSize: 13 }} numberOfLines={1}>{item.playlistName} • {item.data.artist || 'Müzik'}</Text>
-                  </View>
-                  <Ionicons name="play-circle" size={28} color={colors.primary} />
-                </TouchableOpacity>
-              );
-            }
-            });
-          })()}
-        </ScrollView>
+        <SearchResults 
+          searchQuery={searchQuery}
+          insets={insets}
+          onNavigateToPlaylist={onNavigateToPlaylist}
+          onClose={() => setIsSearchActive(false)}
+        />
       ) : (
         <ScrollView 
           contentContainerStyle={{ paddingBottom: Math.max(120, insets.bottom + 90) }}
