@@ -1,5 +1,5 @@
 {
-  "latestVersion": "1.0.2",
-  "downloadUrl": "https://github.com/eyupogluserdar/soloplay/releases/download/v1.0.2/app-release.apk",
-  "releaseNotes": "- OCR beyaz ekran sorunu düzeltildi\n- YouTube arka plan ses oynatma hatası giderildi"
+  "latestVersion": "2.0.0",
+  "downloadUrl": "https://github.com/eyupogluserdar/soloplay/releases/latest/download/app-release.apk",
+  "releaseNotes": "- Gelişmiş Canlı Arama Motoru eklendi\n- Müzik ve Belgeler için özel 'Yükle' klasörleri oluşturuldu\n- Uygulama içi geri dönme mantığı geliştirildi\n- YouTube özellikleri kaldırılarak sistem hafifletildi"
 }
