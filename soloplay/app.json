@@ -4,7 +4,7 @@
     "slug": "soloplay",
     "scheme": "soloplay",
     "newArchEnabled": false,
-    "version": "1.0.2",
+    "version": "2.0.0",
     "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,6 +13,7 @@
       "supportsTablet": true
     },
     "android": {
+      "versionCode": 3,
       "package": "com.htmlkod.soloplay",
       "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
