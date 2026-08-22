@@ -1,4 +1,4 @@
-﻿import { create } from 'zustand';
+import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -6,6 +6,8 @@ interface ProfileState {
   isProfileComplete: boolean;
   userName: string;
   userAge: string;
+  birthDate: string;
+  zodiacSign: string;
   reportStrengths: string;
   reportImprovements: string;
   aiComment: string;
@@ -17,6 +19,7 @@ interface ProfileState {
     improvements: string, 
     comment: string
   ) => void;
+  updateDetailedProfile: (birthDate: string, zodiacSign: string, hobbies: string) => void;
   resetProfile: () => void;
 }
 
@@ -26,6 +29,8 @@ export const useProfileStore = create<ProfileState>()(
       isProfileComplete: false,
       userName: '',
       userAge: '',
+      birthDate: '',
+      zodiacSign: '',
       reportStrengths: '',
       reportImprovements: '',
       aiComment: '',
@@ -38,6 +43,12 @@ export const useProfileStore = create<ProfileState>()(
         reportImprovements: improvements,
         aiComment: comment
       }),
+
+      updateDetailedProfile: (birthDate, zodiacSign, hobbies) => set((state) => ({
+        birthDate,
+        zodiacSign,
+        reportStrengths: hobbies // we can reuse reportStrengths for hobbies to avoid breaking existing UI, or just append it
+      })),
       
       resetProfile: () => set({
         isProfileComplete: false,

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography } from '../theme/theme';
 import { useProfileStore } from '../store/useProfileStore';
@@ -21,9 +21,15 @@ export const getAgeGroup = (ageStr: string) => {
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) => {
   const { 
-    userName, userAge, reportStrengths, reportImprovements, aiComment, resetProfile 
+    userName, userAge, birthDate, zodiacSign, reportStrengths, reportImprovements, aiComment, resetProfile, updateDetailedProfile
   } = useProfileStore();
+  
   const [isProfileExpanded, setIsProfileExpanded] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  
+  const [editBirthDate, setEditBirthDate] = useState(birthDate || '');
+  const [editZodiac, setEditZodiac] = useState(zodiacSign || '');
+  const [editHobbies, setEditHobbies] = useState(reportStrengths || '');
   
   const ageGroup = userAge ? getAgeGroup(userAge) : 'yetişkin';
   const currentIcon = ageGroup === 'child' ? 'game-controller' : ageGroup === 'teen' ? 'headset' : ageGroup === 'adult' ? 'briefcase' : 'cafe';
@@ -57,49 +63,131 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
           <Text style={styles.progressText}>Sonraki seviyeye 350 XP kaldı</Text>
         </View>
 
-        <TouchableOpacity 
-          activeOpacity={0.9} 
-          onPress={() => setIsProfileExpanded(!isProfileExpanded)}
-          style={[styles.card, { borderColor: colors.primary, borderWidth: 1, marginBottom: 16 }]}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Ionicons name={currentIcon as any} size={48} color={colors.primary} />
-            <View style={{ marginLeft: 16, flex: 1 }}>
-              <Text style={{ ...typography.h1, fontSize: 22, color: colors.text }}>{userName.trim() || 'Kullanıcı'}</Text>
-              <Text style={{ ...typography.body, color: colors.textSecondary, fontSize: 14 }}>{userAge} Yaşında • {ageGroup.toUpperCase()}</Text>
+        <View style={[styles.card, { borderColor: colors.primary, borderWidth: 1, marginBottom: 16, padding: 0 }]}>
+          <TouchableOpacity 
+            activeOpacity={0.7} 
+            onPress={() => {
+              if (!isEditingProfile) {
+                setIsProfileExpanded(!isProfileExpanded);
+              }
+            }}
+            style={{ padding: 20 }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name={currentIcon as any} size={48} color={colors.primary} />
+              <View style={{ marginLeft: 16, flex: 1 }}>
+                <Text style={{ ...typography.h1, fontSize: 22, color: colors.text }}>{userName.trim() || 'Kullanıcı'}</Text>
+                <Text style={{ ...typography.body, color: colors.textSecondary, fontSize: 14 }}>{userAge} Yaşında • {ageGroup.toUpperCase()}</Text>
+              </View>
+              <Ionicons name={isProfileExpanded ? "chevron-up" : "chevron-down"} size={24} color={colors.textSecondary} />
             </View>
-            <Ionicons name={isProfileExpanded ? "chevron-up" : "chevron-down"} size={24} color={colors.textSecondary} />
-          </View>
-          
-          {!isProfileExpanded && (
-            <View style={{ flexDirection: 'row', marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' }}>
-               <View style={{ flex: 1 }}>
-                 <Text style={{ ...typography.body, color: colors.textSecondary, fontSize: 12 }}>İrade Puanı</Text>
-                 <Text style={{ ...typography.h2, color: colors.primary, fontSize: 18 }}>%0</Text>
-               </View>
-               <View style={{ flex: 1 }}>
-                 <Text style={{ ...typography.body, color: colors.textSecondary, fontSize: 12 }}>Hedef Başarısı</Text>
-                 <Text style={{ ...typography.h2, color: '#f59e0b', fontSize: 18 }}>%0</Text>
-               </View>
-               <View style={{ flex: 1 }}>
-                 <Text style={{ ...typography.body, color: colors.textSecondary, fontSize: 12 }}>Deneyim (XP)</Text>
-                 <Text style={{ ...typography.h2, color: '#3b82f6', fontSize: 18 }}>0</Text>
-               </View>
-            </View>
-          )}
+            
+            {!isProfileExpanded && (
+              <View style={{ flexDirection: 'row', marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' }}>
+                 <View style={{ flex: 1 }}>
+                   <Text style={{ ...typography.body, color: colors.textSecondary, fontSize: 12 }}>İrade Puanı</Text>
+                   <Text style={{ ...typography.h2, color: colors.primary, fontSize: 18 }}>%0</Text>
+                 </View>
+                 <View style={{ flex: 1 }}>
+                   <Text style={{ ...typography.body, color: colors.textSecondary, fontSize: 12 }}>Hedef Başarısı</Text>
+                   <Text style={{ ...typography.h2, color: '#f59e0b', fontSize: 18 }}>%0</Text>
+                 </View>
+                 <View style={{ flex: 1 }}>
+                   <Text style={{ ...typography.body, color: colors.textSecondary, fontSize: 12 }}>Deneyim (XP)</Text>
+                   <Text style={{ ...typography.h2, color: '#3b82f6', fontSize: 18 }}>0</Text>
+                 </View>
+              </View>
+            )}
+          </TouchableOpacity>
 
           {isProfileExpanded && (
-            <View style={{ marginTop: 24, paddingTop: 24, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' }}>
+            <View style={{ padding: 20, paddingTop: 0 }}>
+              <View style={{ paddingTop: 20, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' }}>
               
-              <View style={{ width: '100%', marginBottom: 20 }}>
-                <Text style={{ ...typography.h2, color: colors.primary, marginBottom: 8 }}>✨ Güçlü Yönler / İlgi Alanları</Text>
-                <Text style={{ ...typography.body, color: colors.text, lineHeight: 22 }}>{reportStrengths}</Text>
-              </View>
+              {!isEditingProfile ? (
+                <>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                     <Text style={{ ...typography.h2, color: colors.primary }}>Gelişmiş Profil Bilgileri</Text>
+                     <TouchableOpacity onPress={() => setIsEditingProfile(true)} style={{ padding: 6, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 8 }}>
+                       <Ionicons name="pencil" size={16} color={colors.text} />
+                     </TouchableOpacity>
+                  </View>
+                  
+                  {(birthDate || zodiacSign) && (
+                    <View style={{ flexDirection: 'row', gap: 12, marginBottom: 20 }}>
+                      {birthDate ? (
+                        <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 8 }}>
+                          <Text style={{ ...typography.small, color: colors.textSecondary }}>Doğum Tarihi</Text>
+                          <Text style={{ ...typography.body, color: colors.text, marginTop: 4 }}>{birthDate}</Text>
+                        </View>
+                      ) : null}
+                      {zodiacSign ? (
+                        <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 8 }}>
+                          <Text style={{ ...typography.small, color: colors.textSecondary }}>Burç</Text>
+                          <Text style={{ ...typography.body, color: colors.text, marginTop: 4 }}>{zodiacSign}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  )}
 
-              <View style={{ width: '100%', marginBottom: 24 }}>
-                <Text style={{ ...typography.h2, color: colors.primary, marginBottom: 8 }}>🎯 Gelişim Alanları / Zorluklar</Text>
-                <Text style={{ ...typography.body, color: colors.text, lineHeight: 22 }}>{reportImprovements}</Text>
-              </View>
+                  <View style={{ width: '100%', marginBottom: 20 }}>
+                    <Text style={{ ...typography.h2, color: colors.primary, marginBottom: 8 }}>✨ Güçlü Yönler / İlgi Alanları</Text>
+                    <Text style={{ ...typography.body, color: colors.text, lineHeight: 22 }}>{reportStrengths}</Text>
+                  </View>
+
+                  <View style={{ width: '100%', marginBottom: 24 }}>
+                    <Text style={{ ...typography.h2, color: colors.primary, marginBottom: 8 }}>🎯 Gelişim Alanları / Zorluklar</Text>
+                    <Text style={{ ...typography.body, color: colors.text, lineHeight: 22 }}>{reportImprovements}</Text>
+                  </View>
+                </>
+              ) : (
+                <View style={{ marginBottom: 24 }}>
+                  <Text style={{ ...typography.h2, color: colors.primary, marginBottom: 16 }}>Profili Düzenle</Text>
+                  
+                  <Text style={{ ...typography.small, color: colors.textSecondary, marginBottom: 8 }}>Doğum Tarihi (GG/AA/YYYY)</Text>
+                  <TextInput
+                    style={{ backgroundColor: 'rgba(255,255,255,0.05)', color: colors.text, borderRadius: 8, padding: 12, marginBottom: 16 }}
+                    value={editBirthDate}
+                    onChangeText={setEditBirthDate}
+                    placeholder="Örn: 15/08/1995"
+                    placeholderTextColor={colors.textSecondary}
+                  />
+
+                  <Text style={{ ...typography.small, color: colors.textSecondary, marginBottom: 8 }}>Burç</Text>
+                  <TextInput
+                    style={{ backgroundColor: 'rgba(255,255,255,0.05)', color: colors.text, borderRadius: 8, padding: 12, marginBottom: 16 }}
+                    value={editZodiac}
+                    onChangeText={setEditZodiac}
+                    placeholder="Örn: Aslan"
+                    placeholderTextColor={colors.textSecondary}
+                  />
+
+                  <Text style={{ ...typography.small, color: colors.textSecondary, marginBottom: 8 }}>İlgi Alanları & Hobiler</Text>
+                  <TextInput
+                    style={{ backgroundColor: 'rgba(255,255,255,0.05)', color: colors.text, borderRadius: 8, padding: 12, marginBottom: 16, height: 80 }}
+                    value={editHobbies}
+                    onChangeText={setEditHobbies}
+                    multiline
+                    placeholder="Nelerden hoşlanırsınız? AI sizi buradan tanıyacak."
+                    placeholderTextColor={colors.textSecondary}
+                  />
+                  
+                  <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
+                    <TouchableOpacity onPress={() => setIsEditingProfile(false)} style={{ padding: 12 }}>
+                      <Text style={{ color: colors.textSecondary, fontWeight: 'bold' }}>İptal</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      onPress={() => {
+                        updateDetailedProfile(editBirthDate, editZodiac, editHobbies);
+                        setIsEditingProfile(false);
+                      }} 
+                      style={{ paddingHorizontal: 20, paddingVertical: 12, backgroundColor: colors.primary, borderRadius: 8 }}
+                    >
+                      <Text style={{ color: '#fff', fontWeight: 'bold' }}>Kaydet</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
               
               <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
                 <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 12 }}>
@@ -123,9 +211,10 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onNavigate }) 
                 </View>
                 <Text style={{ ...typography.body, color: colors.text, lineHeight: 24, fontStyle: 'italic' }}>{aiComment}</Text>
               </View>
+              </View>
             </View>
           )}
-        </TouchableOpacity>
+        </View>
 
         <View style={styles.statsGrid}>
           <View style={styles.statBox}>

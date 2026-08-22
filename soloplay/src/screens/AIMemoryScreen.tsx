@@ -8,18 +8,13 @@ interface AIMemoryScreenProps {
 }
 
 export const AIMemoryScreen: React.FC<AIMemoryScreenProps> = ({ onNavigate }) => {
-  const [currentTime, setCurrentTime] = useState(new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+  const [currentTime] = useState(new Date());
 
   const formattedDate = currentTime.toLocaleDateString('tr-TR', { 
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
   });
   const formattedTime = currentTime.toLocaleTimeString('tr-TR', {
-    hour: '2-digit', minute: '2-digit', second: '2-digit'
+    hour: '2-digit', minute: '2-digit'
   });
 
   return (
@@ -77,14 +72,14 @@ export const AIMemoryScreen: React.FC<AIMemoryScreenProps> = ({ onNavigate }) =>
           </View>
         </View>
 
-        {/* AI Kayıt Odası (Arşiv) */}
+        {/* AI Kayıt Odası (Arşiv ve Bağlam) */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Ionicons name="server" size={20} color={colors.textSecondary} />
-            <Text style={styles.cardTitle}>AI Kayıt Odası (Arşiv)</Text>
+            <Text style={styles.cardTitle}>AI Kayıt Odası (Bağlam)</Text>
           </View>
           <Text style={styles.infoDescription}>
-            Asistanın öğrendiği, kaydettiği veya sizin manuel olarak eklediğiniz tüm özel veriler (bağlamlar) burada şifreli olarak tutulur. Asistan her konuşmada bu arşivi okuyarak sizi hatırlar.
+            Asistanın sizi tanıması için tutulan kişisel hafıza, sohbet ve belge arşivleri.
           </Text>
           
           <View style={styles.vaultGrid}>
@@ -105,14 +100,95 @@ export const AIMemoryScreen: React.FC<AIMemoryScreenProps> = ({ onNavigate }) =>
               <Text style={styles.vaultText}>Tarananlar</Text>
               <Text style={styles.vaultCount}>0 Belge</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* İşlem Kayıt Odası (Operasyonlar) */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="analytics" size={20} color={colors.textSecondary} />
+            <Text style={styles.cardTitle}>İşlem Kayıt Odası</Text>
+          </View>
+          <Text style={styles.infoDescription}>
+            Asistanın gerçekleştirdiği araç operasyonları ve sistemdeki görev akışınız.
+          </Text>
+          
+          <View style={styles.vaultGrid}>
+            <TouchableOpacity style={styles.vaultItem}>
+              <Ionicons name="videocam-outline" size={24} color="#8b5cf6" />
+              <Text style={styles.vaultText}>Video Analizleri</Text>
+              <Text style={styles.vaultCount}>0 Rapor</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity style={styles.vaultItem}>
-              <Ionicons name="add-circle-outline" size={24} color={colors.primary} />
-              <Text style={[styles.vaultText, { color: colors.primary }]}>Manuel Veri Ekle</Text>
+              <Ionicons name="globe-outline" size={24} color="#3b82f6" />
+              <Text style={styles.vaultText}>İnternet Aramaları</Text>
+              <Text style={styles.vaultCount}>0 İşlem</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.vaultItem}>
+              <Ionicons name="list-circle-outline" size={24} color={colors.primary} />
+              <Text style={styles.vaultText}>Tüm Görevler</Text>
+              <Text style={styles.vaultCount}>0 Görev</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.vaultItem}>
+              <Ionicons name="checkmark-circle-outline" size={24} color="#10b981" />
+              <Text style={styles.vaultText}>Yapılanlar</Text>
+              <Text style={styles.vaultCount}>0 Görev</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.vaultItem}>
+              <Ionicons name="time-outline" size={24} color="#f59e0b" />
+              <Text style={styles.vaultText}>Bekleyenler</Text>
+              <Text style={styles.vaultCount}>0 Görev</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.vaultItem}>
+              <Ionicons name="alert-circle-outline" size={24} color="#ef4444" />
+              <Text style={styles.vaultText}>Gecikmiş Olanlar</Text>
+              <Text style={styles.vaultCount}>0 Görev</Text>
             </TouchableOpacity>
           </View>
         </View>
         
+        {/* Kullanıcı Profil ve Gelişim Odası */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="person" size={20} color={colors.textSecondary} />
+            <Text style={styles.cardTitle}>Kullanıcı Gelişim Odası</Text>
+          </View>
+          <Text style={styles.infoDescription}>
+            Sizin başladığınız noktadan bugüne kadarki evriminizi, hobilerinizi ve karakteristik haritanızı temsil eder. Asistan, "Kiminle yürüyorum?" sorusunun cevabını buradan okur.
+          </Text>
+          
+          <View style={styles.vaultGrid}>
+            <TouchableOpacity style={styles.vaultItem}>
+              <Ionicons name="id-card-outline" size={24} color="#06b6d4" />
+              <Text style={styles.vaultText}>Kişisel Profil</Text>
+              <Text style={styles.vaultCount}>Kimlik & Yaş</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.vaultItem}>
+              <Ionicons name="trending-up-outline" size={24} color="#10b981" />
+              <Text style={styles.vaultText}>İlerleme Eğrisi</Text>
+              <Text style={styles.vaultCount}>Zaman Çizelgesi</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.vaultItem}>
+              <Ionicons name="heart-outline" size={24} color="#ec4899" />
+              <Text style={styles.vaultText}>İlgi Alanları</Text>
+              <Text style={styles.vaultCount}>Hedef & Hobi</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.vaultItem}>
+              <Ionicons name="pulse-outline" size={24} color="#f43f5e" />
+              <Text style={styles.vaultText}>Davranış Örüntüleri</Text>
+              <Text style={styles.vaultCount}>Alışkanlık & Zaaf</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Bottom padding spacing for tab bar */}
         <View style={{ height: 100 }} />
 
