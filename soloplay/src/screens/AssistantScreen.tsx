@@ -45,6 +45,7 @@ export const AssistantScreen: React.FC<AssistantScreenProps> = ({ onBack, onNavi
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
   const [isDesktopMode, setIsDesktopMode] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const [isVideoLinkModalVisible, setIsVideoLinkModalVisible] = useState(false);
   const [videoLinkInput, setVideoLinkInput] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -194,19 +195,15 @@ export const AssistantScreen: React.FC<AssistantScreenProps> = ({ onBack, onNavi
                 </Text>
               </View>
 
-              {/* Desktop/Mobile Toggle */}
+              {/* Report Toggle */}
               <TouchableOpacity 
-                onPress={() => {
-                  setIsDesktopMode(!isDesktopMode);
-                  // Force a reload so the user agent and injected javascript take effect immediately
-                  setTimeout(() => webViewRef.current?.reload(), 100);
-                }} 
+                onPress={() => setShowReport(!showReport)} 
                 style={{ padding: 6, marginLeft: 8 }}
               >
                 <Ionicons 
-                  name={isDesktopMode ? "desktop" : "phone-portrait"} 
-                  size={18} 
-                  color={isDesktopMode ? colors.primary : colors.textSecondary} 
+                  name={showReport ? "play-circle" : "document-text"} 
+                  size={20} 
+                  color={showReport ? colors.primary : colors.textSecondary} 
                 />
               </TouchableOpacity>
 
@@ -224,49 +221,81 @@ export const AssistantScreen: React.FC<AssistantScreenProps> = ({ onBack, onNavi
               </TouchableOpacity>
             </View>
             
-            <WebView 
+            <View style={{ flex: 1 }}>
+              {/* Report Overlay */}
+              {showReport && (
+                <ScrollView 
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.background, zIndex: 10 }}
+                  contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                    <Ionicons name="sparkles" size={20} color={colors.primary} style={{ marginRight: 8 }} />
+                    <Text style={{ ...typography.h3, color: colors.text }}>AI Video Analiz Raporu</Text>
+                  </View>
+                  
+                  <Text style={{ ...typography.body, color: colors.textSecondary, marginBottom: 16, lineHeight: 24 }}>
+                    Bu video, son dönemdeki ekonomik dalgalanmaları ve piyasa beklentilerini ele almaktadır. Merkez bankasının faiz kararları, enflasyon verileri ve döviz kurlarındaki hareketlilik detaylıca tartışılmıştır. Uzman konuk, özellikle yıl sonu hedeflerinde sapmalar olabileceğine dikkat çekiyor.
+                  </Text>
+                  
+                  <Text style={{ ...typography.h4, color: colors.text, marginBottom: 8 }}>Öne Çıkan Başlıklar:</Text>
+                  <View style={{ marginBottom: 20 }}>
+                    <Text style={{ ...typography.body, color: colors.textSecondary, marginBottom: 4 }}>• Faiz politikasının sektörlere etkisi</Text>
+                    <Text style={{ ...typography.body, color: colors.textSecondary, marginBottom: 4 }}>• Döviz kurlarında beklenen direnç noktaları</Text>
+                    <Text style={{ ...typography.body, color: colors.textSecondary, marginBottom: 4 }}>• Yabancı yatırımcının piyasaya dönüş sinyalleri</Text>
+                  </View>
+
+                  <TouchableOpacity 
+                    onPress={() => setShowReport(false)}
+                    style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', padding: 12, borderRadius: 8, alignItems: 'center' }}>
+                    <Text style={{ color: colors.primary, fontWeight: 'bold' }}>Videoya Geri Dön</Text>
+                  </TouchableOpacity>
+                </ScrollView>
+              )}
+
+              <WebView 
               ref={webViewRef}
               source={{ uri: browserUrl }}
-              style={{ flex: 1 }}
+              style={{ flex: 1, opacity: showReport ? 0 : 1 }}
               userAgent={isDesktopMode ? "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36" : undefined}
-              injectedJavaScript={isDesktopMode ? `
-                var meta = document.querySelector('meta[name="viewport"]');
-                var content = 'width=1024, initial-scale=0.01, maximum-scale=5.0, user-scalable=yes';
-                if (meta) { 
-                  meta.setAttribute('content', content); 
-                } else { 
-                  meta = document.createElement('meta'); 
-                  meta.name = 'viewport'; 
-                  meta.content = content; 
-                  document.head.appendChild(meta); 
-                }
-                setTimeout(function() {
-                  var v = document.querySelector('video') || document.querySelector('iframe');
-                  if(v) v.scrollIntoView({behavior: 'smooth', block: 'center'});
-                }, 1500);
-                true;
-              ` : `
-                var meta = document.querySelector('meta[name="viewport"]');
-                if (meta) { meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes'); }
-                setTimeout(function() {
-                  var v = document.querySelector('video') || document.querySelector('iframe');
-                  if(v) v.scrollIntoView({behavior: 'smooth', block: 'center'});
-                }, 1500);
-                true;
-              `}
-              scalesPageToFit={true}
-              setBuiltInZoomControls={true}
-              setDisplayZoomControls={false}
-              onNavigationStateChange={(navState) => {
-                setCanGoBack(navState.canGoBack);
-                setCanGoForward(navState.canGoForward);
-                if (navState.url && navState.url !== browserUrl) {
-                  setBrowserUrl(navState.url);
-                }
-                // Update loading state based on navigation state
-                setIsVideoLoaded(!navState.loading);
-              }}
-            />
+                injectedJavaScript={isDesktopMode ? `
+                  var meta = document.querySelector('meta[name="viewport"]');
+                  var content = 'width=1024, initial-scale=0.01, maximum-scale=5.0, user-scalable=yes';
+                  if (meta) { 
+                    meta.setAttribute('content', content); 
+                  } else { 
+                    meta = document.createElement('meta'); 
+                    meta.name = 'viewport'; 
+                    meta.content = content; 
+                    document.head.appendChild(meta); 
+                  }
+                  setTimeout(function() {
+                    var v = document.querySelector('video') || document.querySelector('iframe');
+                    if(v) v.scrollIntoView({behavior: 'smooth', block: 'center'});
+                  }, 1500);
+                  true;
+                ` : `
+                  var meta = document.querySelector('meta[name="viewport"]');
+                  if (meta) { meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes'); }
+                  setTimeout(function() {
+                    var v = document.querySelector('video') || document.querySelector('iframe');
+                    if(v) v.scrollIntoView({behavior: 'smooth', block: 'center'});
+                  }, 1500);
+                  true;
+                `}
+                scalesPageToFit={true}
+                setBuiltInZoomControls={true}
+                setDisplayZoomControls={false}
+                onNavigationStateChange={(navState) => {
+                  setCanGoBack(navState.canGoBack);
+                  setCanGoForward(navState.canGoForward);
+                  if (navState.url && navState.url !== browserUrl) {
+                    setBrowserUrl(navState.url);
+                  }
+                  // Update loading state based on navigation state
+                  setIsVideoLoaded(!navState.loading);
+                }}
+              />
+            </View>
             
             {/* AI Video Analysis Controls */}
             <View style={{ 
@@ -534,7 +563,11 @@ export const AssistantScreen: React.FC<AssistantScreenProps> = ({ onBack, onNavi
               style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#18181b', padding: 16, borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' }}
               onPress={() => {
                 setIsVideoActionModalVisible(false);
-                alert('AI: Videonun metin dökümü indiriliyor ve hızlıca özetleniyor...');
+                setIsAnalyzing(true);
+                setTimeout(() => {
+                  setIsAnalyzing(false);
+                  setShowReport(true);
+                }, 1500);
               }}
             >
               <View style={[styles.smallIconBox, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
@@ -569,7 +602,7 @@ export const AssistantScreen: React.FC<AssistantScreenProps> = ({ onBack, onNavi
                 setIsAnalyzing(true);
                 setTimeout(() => {
                   setIsAnalyzing(false);
-                  alert('AI: Geniş özetiniz hazır! (Mesaj kutusunda görünecek)');
+                  setShowReport(true);
                 }, 3000);
               }}
             >
@@ -673,9 +706,11 @@ export const AssistantScreen: React.FC<AssistantScreenProps> = ({ onBack, onNavi
               <TouchableOpacity 
                 onPress={() => {
                   setIsTimeRangeModalVisible(false);
-                  const start = `${startMin || '00'}:${startSec || '00'}`;
-                  const end = `${endMin || '00'}:${endSec || '00'}`;
-                  alert(`AI: ${start} - ${end} aralığı inceleniyor...`);
+                  setIsAnalyzing(true);
+                  setTimeout(() => {
+                    setIsAnalyzing(false);
+                    setShowReport(true);
+                  }, 2000);
                 }} 
                 style={{ paddingVertical: 10, paddingHorizontal: 16, backgroundColor: colors.primary, borderRadius: 8 }}>
                 <Text style={{ color: colors.background, fontWeight: 'bold' }}>Analiz Et</Text>
