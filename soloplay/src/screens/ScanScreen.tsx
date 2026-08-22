@@ -412,6 +412,18 @@ export function ScanScreen({ onBack }: any) {
     setIsScanning(true);
   };
 
+  const [isCameraReady, setIsCameraReady] = useState(false);
+  useEffect(() => {
+    let isMounted = true;
+    const timer = setTimeout(() => {
+      if (isMounted) setIsCameraReady(true);
+    }, 400); // Increased delay for Android camera hardware initialization
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, []);
+
   if (!permission) {
     return <View style={[styles.container, { paddingTop: insets.top }]}><ActivityIndicator size="large" color={colors.primary} /></View>;
   }
@@ -434,13 +446,10 @@ export function ScanScreen({ onBack }: any) {
           style={{ padding: 5, marginRight: 15 }} 
           onPress={() => {
             if (!isScanning) {
-              // Editördeyken Geri tuşuna basılırsa, doğrudan canlı kameraya dön
               resetScanner();
             } else if (galleryImageUri) {
-              // Kırpma ekranındayken Geri tuşuna basılırsa, canlı kameraya dön
               setGalleryImageUri(null);
             } else if (onBack) {
-              // Canlı kameradayken Geri tuşuna basılırsa, Dashboard'a dön
               onBack();
             }
           }}
@@ -461,13 +470,13 @@ export function ScanScreen({ onBack }: any) {
       {isScanning ? (
         <View style={styles.cameraContainer} onLayout={e => setContainerDim({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
           <View style={{ flex: 1, backgroundColor: '#111' }} {...panResponder.panHandlers}>
-            <CameraView
-              ref={cameraRef}
-              style={[StyleSheet.absoluteFillObject, galleryImageUri ? { opacity: 0 } : {}]}
-              facing="back"
-              pictureSize="1920x1080"
-              autofocus="on"
-            />
+            {isCameraReady && !galleryImageUri && (
+              <CameraView
+                ref={cameraRef}
+                style={StyleSheet.absoluteFillObject}
+                facing="back"
+              />
+            )}
             {galleryImageUri && (
               <Image 
                 source={{ uri: galleryImageUri }} 
