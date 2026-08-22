@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, TextInput, KeyboardAvoidingView, Platform, LayoutAnimation, UIManager } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, TextInput, KeyboardAvoidingView, Platform, LayoutAnimation, UIManager, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography } from '../theme/theme';
 import { useProfileStore } from '../store/useProfileStore';
@@ -270,7 +270,13 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onNavigate }) =>
       if (!userName.trim()) { Alert.alert("Eksik Bilgi", "Lütfen adınızı girin."); return; }
       if (!userAge.trim()) { Alert.alert("Eksik Bilgi", "Lütfen yaşınızı girin."); return; }
       if (!userAvatar) { Alert.alert("Eksik Bilgi", "Lütfen bir avatar seçin."); return; }
-      if (isNaN(parseInt(userAge))) { Alert.alert("Hatalı Yaş", "Lütfen yaşınızı rakamla girin."); return; }
+      
+      const parsedAge = parseInt(userAge);
+      if (isNaN(parsedAge)) { Alert.alert("Hatalı Yaş", "Lütfen yaşınızı rakamla girin."); return; }
+      if (parsedAge < 13) { 
+        Alert.alert("Yaş Sınırı", "Google Play Aile Politikaları gereği, Soloplay'i kullanabilmek için en az 13 yaşında olmalısın."); 
+        return; 
+      }
     } else if (currentQuestion === 2) {
       if (!q2Option && !q2Custom.trim()) { Alert.alert("Seçim Yapmadınız", "Lütfen bir seçenek belirleyin."); return; }
     } else if (currentQuestion === 3) {
