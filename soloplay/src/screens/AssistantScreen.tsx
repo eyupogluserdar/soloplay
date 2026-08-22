@@ -45,6 +45,7 @@ export const AssistantScreen: React.FC<AssistantScreenProps> = ({ onBack, onNavi
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
   const [isDesktopMode, setIsDesktopMode] = useState(false);
+  const [browserType, setBrowserType] = useState<'web' | 'video'>('web');
   const [showReport, setShowReport] = useState(false);
   const [isVideoLinkModalVisible, setIsVideoLinkModalVisible] = useState(false);
   const [videoLinkInput, setVideoLinkInput] = useState('');
@@ -195,17 +196,35 @@ export const AssistantScreen: React.FC<AssistantScreenProps> = ({ onBack, onNavi
                 </Text>
               </View>
 
-              {/* Report Toggle */}
-              <TouchableOpacity 
-                onPress={() => setShowReport(!showReport)} 
-                style={{ padding: 6, marginLeft: 8 }}
-              >
-                <Ionicons 
-                  name={showReport ? "play-circle" : "document-text"} 
-                  size={20} 
-                  color={showReport ? colors.primary : colors.textSecondary} 
-                />
-              </TouchableOpacity>
+              {browserType === 'video' ? (
+                /* Report Toggle */
+                <TouchableOpacity 
+                  onPress={() => setShowReport(!showReport)} 
+                  style={{ padding: 6, marginLeft: 8 }}
+                >
+                  <Ionicons 
+                    name={showReport ? "play-circle" : "document-text"} 
+                    size={20} 
+                    color={showReport ? colors.primary : colors.textSecondary} 
+                  />
+                </TouchableOpacity>
+              ) : (
+                /* Desktop/Mobile Toggle */
+                <TouchableOpacity 
+                  onPress={() => {
+                    setIsDesktopMode(!isDesktopMode);
+                    // Force a reload so the user agent and injected javascript take effect immediately
+                    setTimeout(() => webViewRef.current?.reload(), 100);
+                  }} 
+                  style={{ padding: 6, marginLeft: 8 }}
+                >
+                  <Ionicons 
+                    name={isDesktopMode ? "desktop" : "phone-portrait"} 
+                    size={18} 
+                    color={isDesktopMode ? colors.primary : colors.textSecondary} 
+                  />
+                </TouchableOpacity>
+              )}
 
               {/* Close Browser */}
               <TouchableOpacity 
@@ -298,58 +317,60 @@ export const AssistantScreen: React.FC<AssistantScreenProps> = ({ onBack, onNavi
             </View>
             
             {/* AI Video Analysis Controls */}
-            <View style={{ 
-              flexDirection: 'row', 
-              alignItems: 'center', 
-              justifyContent: 'space-between', 
-              backgroundColor: colors.surfaceHighlight || '#27272a', 
-              paddingVertical: 12, 
-              paddingHorizontal: 16,
-              borderTopWidth: 1,
-              borderTopColor: 'rgba(255,255,255,0.05)'
-            }}>
-              {!isVideoLoaded ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <ActivityIndicator size="small" color={colors.textSecondary} style={{ marginRight: 8 }} />
-                  <Text style={{ ...typography.small, color: colors.textSecondary }}>
-                    Video Bekleniyor...
-                  </Text>
-                </View>
-              ) : (
-                <>
+            {browserType === 'video' && (
+              <View style={{ 
+                flexDirection: 'row', 
+                alignItems: 'center', 
+                justifyContent: 'space-between', 
+                backgroundColor: colors.surfaceHighlight || '#27272a', 
+                paddingVertical: 12, 
+                paddingHorizontal: 16,
+                borderTopWidth: 1,
+                borderTopColor: 'rgba(255,255,255,0.05)'
+              }}>
+                {!isVideoLoaded ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: isAnalyzing ? '#ef4444' : '#3b82f6', marginRight: 8, opacity: isAnalyzing ? 1 : 0.8 }} />
-                    <Text style={{ ...typography.small, color: isAnalyzing ? '#ef4444' : '#3b82f6' }}>
-                      {isAnalyzing ? 'AI Videoyu Gözlemliyor' : 'Video Analize Hazır'}
+                    <ActivityIndicator size="small" color={colors.textSecondary} style={{ marginRight: 8 }} />
+                    <Text style={{ ...typography.small, color: colors.textSecondary }}>
+                      Video Bekleniyor...
                     </Text>
                   </View>
-                  
-                  <TouchableOpacity 
-                    onPress={() => {
-                      if (isAnalyzing) {
-                        setIsAnalyzing(false);
-                      } else {
-                        setIsVideoActionModalVisible(true);
-                      }
-                    }}
-                    style={{ 
-                      flexDirection: 'row', 
-                      alignItems: 'center', 
-                      backgroundColor: isAnalyzing ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)', 
-                      paddingHorizontal: 16, 
-                      paddingVertical: 8, 
-                      borderRadius: 20 
-                    }}
-                  >
-                    <Ionicons name={isAnalyzing ? "stop-circle-outline" : "eye"} size={16} color={isAnalyzing ? "#ef4444" : "#10b981"} />
-                    {!isAnalyzing && <Ionicons name="ear" size={16} color="#10b981" style={{ marginLeft: 4 }} />}
-                    <Text style={{ marginLeft: 6, color: isAnalyzing ? "#ef4444" : "#10b981", fontWeight: 'bold', fontSize: 13 }}>
-                      {isAnalyzing ? "Analizi Durdur" : "Video Analiz Modu"}
-                    </Text>
-                  </TouchableOpacity>
-                </>
-              )}
-            </View>
+                ) : (
+                  <>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: isAnalyzing ? '#ef4444' : '#3b82f6', marginRight: 8, opacity: isAnalyzing ? 1 : 0.8 }} />
+                      <Text style={{ ...typography.small, color: isAnalyzing ? '#ef4444' : '#3b82f6' }}>
+                        {isAnalyzing ? 'AI Videoyu Gözlemliyor' : 'Video Analize Hazır'}
+                      </Text>
+                    </View>
+                    
+                    <TouchableOpacity 
+                      onPress={() => {
+                        if (isAnalyzing) {
+                          setIsAnalyzing(false);
+                        } else {
+                          setIsVideoActionModalVisible(true);
+                        }
+                      }}
+                      style={{ 
+                        flexDirection: 'row', 
+                        alignItems: 'center', 
+                        backgroundColor: isAnalyzing ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)', 
+                        paddingHorizontal: 16, 
+                        paddingVertical: 8, 
+                        borderRadius: 20 
+                      }}
+                    >
+                      <Ionicons name={isAnalyzing ? "stop-circle-outline" : "eye"} size={16} color={isAnalyzing ? "#ef4444" : "#10b981"} />
+                      {!isAnalyzing && <Ionicons name="ear" size={16} color="#10b981" style={{ marginLeft: 4 }} />}
+                      <Text style={{ marginLeft: 6, color: isAnalyzing ? "#ef4444" : "#10b981", fontWeight: 'bold', fontSize: 13 }}>
+                        {isAnalyzing ? "Analizi Durdur" : "Video Analiz Modu"}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            )}
           </View>
         ) : (
           <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
@@ -417,12 +438,14 @@ export const AssistantScreen: React.FC<AssistantScreenProps> = ({ onBack, onNavi
                 // Extremely basic parsing for demo
                 if (urlMatch) {
                   setBrowserUrl(urlMatch[0]);
+                  setBrowserType('web');
                   setIsBrowserMode(true);
                 } else if (text.includes('.com') || text.includes('.net') || text.includes('.org') || text.includes('.tr')) {
                   const words = text.split(' ');
                   const domain = words.find(w => w.includes('.'));
                   if (domain) {
                     setBrowserUrl(`https://${domain.trim()}`);
+                    setBrowserType('web');
                     setIsBrowserMode(true);
                   }
                 } else if (text.includes('bul') || text.includes('tara')) {
@@ -468,7 +491,7 @@ export const AssistantScreen: React.FC<AssistantScreenProps> = ({ onBack, onNavi
         ]}
       >
         <View style={styles.floatingStack}>
-          <TouchableOpacity style={styles.floatingRowButton} onPress={() => { toggleAttachmentMenu(); setIsBrowserMode(true); }}>
+          <TouchableOpacity style={styles.floatingRowButton} onPress={() => { toggleAttachmentMenu(); setBrowserType('web'); setIsBrowserMode(true); }}>
             <View style={[styles.smallIconBox, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
               <Ionicons name="globe-outline" size={20} color="#3b82f6" />
             </View>
@@ -537,6 +560,7 @@ export const AssistantScreen: React.FC<AssistantScreenProps> = ({ onBack, onNavi
                        url = 'https://' + url;
                      }
                      setBrowserUrl(url);
+                     setBrowserType('video');
                      setIsBrowserMode(true);
                      setVideoLinkInput(''); // reset for next time
                   }
