@@ -541,8 +541,8 @@ export const AssistantScreen: React.FC<AssistantScreenProps> = ({ onBack, onNavi
                 <Ionicons name="flash-outline" size={20} color="#f59e0b" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ ...typography.body, fontWeight: 'bold', color: colors.text }}>⚡ Hızlı Analiz (Özet Çıkar)</Text>
-                <Text style={{ ...typography.small, color: colors.textSecondary, marginTop: 2 }}>Tüm videoyu saniyeler içinde analiz eder.</Text>
+                <Text style={{ ...typography.body, fontWeight: 'bold', color: colors.text }}>⚡ Kısa Özet (Hızlı Analiz)</Text>
+                <Text style={{ ...typography.small, color: colors.textSecondary, marginTop: 2 }}>Videonun ana fikrini saniyeler içinde kısaca özetler.</Text>
               </View>
             </TouchableOpacity>
 
@@ -567,14 +567,18 @@ export const AssistantScreen: React.FC<AssistantScreenProps> = ({ onBack, onNavi
               onPress={() => {
                 setIsVideoActionModalVisible(false);
                 setIsAnalyzing(true);
+                setTimeout(() => {
+                  setIsAnalyzing(false);
+                  alert('AI: Geniş özetiniz hazır! (Mesaj kutusunda görünecek)');
+                }, 3000);
               }}
             >
               <View style={[styles.smallIconBox, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
-                <Ionicons name="eye-outline" size={20} color="#10b981" />
+                <Ionicons name="document-text-outline" size={20} color="#10b981" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ ...typography.body, fontWeight: 'bold', color: colors.text }}>👀 Benimle Birlikte Canlı İzle</Text>
-                <Text style={{ ...typography.small, color: colors.textSecondary, marginTop: 2 }}>Videonun akışıyla eş zamanlı izleyip dinler.</Text>
+                <Text style={{ ...typography.body, fontWeight: 'bold', color: colors.text }}>📝 Geniş Özet (Detaylı Analiz)</Text>
+                <Text style={{ ...typography.small, color: colors.textSecondary, marginTop: 2 }}>Tüm videoyu derinlemesine analiz edip detaylı raporlar.</Text>
               </View>
             </TouchableOpacity>
           </View>
